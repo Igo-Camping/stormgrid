@@ -1,0 +1,75 @@
+{
+  "generated_at": "2026-05-04T00:24:06.061175+00:00",
+  "status": "OK",
+  "version": "v2",
+  "is_authoritative": false,
+  "source": "lizard_raster_export",
+  "input_geotiff": "C:\\Users\\fonzi\\Weather App Folder\\Assets\\Catchments\\northern-beaches-subcatchmentsZ_2026-05-04T00_05_35Z.tiff",
+  "raster": {
+    "width": 3960,
+    "height": 5361,
+    "band_count": 1,
+    "dtype": "float32",
+    "nodata": 0.0,
+    "crs_declared": "EPSG:4283",
+    "transform": [
+      4.7489526900754336e-05,
+      0.0,
+      151.156884627737,
+      0.0,
+      -4.7489526900727664e-05,
+      -33.5698241813311
+    ],
+    "pixel_size_m": [
+      4.398301305674826,
+      5.286534134589004
+    ],
+    "palette_present": false,
+    "palette_size": 0
+  },
+  "parameters": {
+    "min_area_m2": 100.0,
+    "simplification": "none (pixel-exact boundaries preserved)",
+    "dissolve_strategy": "shapely.unary_union grouped by label"
+  },
+  "feature_counts": {
+    "unique_labels": 35,
+    "raw_parts_after_min_area": 38,
+    "dropped_small_parts": 15,
+    "dissolved_features": 35
+  },
+  "validation": {
+    "pairwise_overlap_issues_count": 0,
+    "pairwise_overlap_issues_first_50": [],
+    "coverage_audit": {
+      "raster_data_pixel_count": 11113118,
+      "raster_data_area_m2": 258399663.57,
+      "polygon_total_area_m2": 258414902.25,
+      "ratio_polygon_to_raster": 1.0001,
+      "within_5pct": true,
+      "within_1pct": true
+    },
+    "all_geometries_valid": true
+  },
+  "spatial_accuracy": {
+    "pixel_resolution_m": [
+      4.398301305674826,
+      5.286534134589004
+    ],
+    "boundary_uncertainty_m_min": 6.877,
+    "note": "Boundary precision >= 1 source-pixel diagonal."
+  },
+  "fitness_for_use": {
+    "visual_overlay": true,
+    "indicative_area_attribution": true,
+    "centroid_lookup": true,
+    "design_or_regulatory_use": false,
+    "rationale": "Polygons are reproducible from the source raster but inherit pixel-grid stairsteps and any rasterisation artefacts. They are NOT a substitute for an authoritative vector dataset."
+  },
+  "outputs": {
+    "dissolved_geojson": "C:\\Users\\fonzi\\Weather App Folder\\Assets\\Catchments\\derived_v2\\catchments_dissolved.geojson",
+    "parts_geojson": "C:\\Users\\fonzi\\Weather App Folder\\Assets\\Catchments\\derived_v2\\catchments_parts.geojson",
+    "index_csv": "C:\\Users\\fonzi\\Weather App Folder\\Assets\\Catchments\\derived_v2\\catchments_index.csv",
+    "report_md": "C:\\Users\\fonzi\\Weather App Folder\\Assets\\Catchments\\derived_v2\\extraction_report.md"
+  }
+}
