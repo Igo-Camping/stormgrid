@@ -1,31 +1,58 @@
 {
-  "schema_version": "stormgrid.arf_coefficients.v1",
+  "schema_version": "stormgrid.arf_coefficients.v2",
   "verified": false,
-  "warning": "DEFAULT PLACEHOLDER COEFFICIENTS. Replace with values from ARR2019 Book 2 Chapter 4 Table 2.4.1 for your design region before any engineering use. While verified=false, every ARF-adjusted result is rendered with an explicit 'unverified coefficients' flag.",
+  "warning": "DEFAULT PLACEHOLDER COEFFICIENTS. The ARR2019 Book 2 Chapter 4 Table 2.4.1 values for the operator's region must be transcribed in before any engineering use. While verified=false, every ARF-adjusted output in the UI carries the unverified banner and exports carry coefficients_verified=false.",
   "form": "long_duration",
-  "form_description": "Generalised ARR2019 long-duration ARF (Book 2 Ch. 4): ARF = min(1, 1 - a*A^b*D^(-c) + d*A^e*D^(-f)*(0.3+log10(AEP)) + g*10^(h*A*D/1440)*(0.3+log10(AEP))). Area A in km^2, duration D in minutes, AEP as fraction (e.g. 0.01 for 1%).",
+  "form_description": "ARR2019 long-duration ARF (Book 2 Ch. 4): ARF = min(1, 1 - a*A^b*D^(-c) + d*A^e*D^(-f)*(0.3+log10(AEP)) + g*10^(h*A*D/1440)*(0.3+log10(AEP))). Area A in km^2, duration D in minutes, AEP as fraction (e.g. 0.01 for 1%).",
+  "form_supported_short_duration": false,
   "validity": {
-    "duration_min_hours":  24,
+    "duration_min_hours": 24,
     "duration_max_hours": 168,
-    "area_min_km2":         1,
-    "area_max_km2":     30000,
-    "note": "Long-duration ARR2019 ARF. For durations < 24 h use a short-duration ARF (different equation form); Stormgrid will flag results as extrapolated rather than silently apply this form outside its documented validity range."
+    "area_min_km2": 1,
+    "area_max_km2": 30000,
+    "note": "Long-duration ARR2019 ARF only. Stormgrid does not implement the short-duration form yet; durations < 24 h are flagged extrapolated. The 12-18 h gap between forms is also flagged."
   },
   "default_region": "east_coast_north",
   "regions": {
     "east_coast_north": {
-      "label": "East Coast North (covers the Sydney / Northern Beaches region per ARR2019)",
-      "source_note": "Coefficients are placeholder defaults that yield monotonic ARFs of the right shape (decreasing with area, approaching 1 for small areas). Verify against ARR2019 Book 2 Chapter 4 Table 2.4.1 before any engineering use.",
+      "label": "East Coast North (ARR2019 region — covers Sydney / Northern Beaches)",
+      "verified": false,
+      "source_note": "PLACEHOLDER. Replace coefficients with values from ARR2019 Book 2 Chapter 4 Table 2.4.1 (East Coast North row) before any engineering use. Update this note to cite the published table (edition, page) once transcribed.",
       "coefficients": {
         "a": 0.06,
         "b": 0.361,
         "c": 0.317,
-        "d": 0.0,
-        "e": 0.0,
-        "f": 0.0,
-        "g": 0.0,
-        "h": 0.0
+        "d": 0,
+        "e": 0,
+        "f": 0,
+        "g": 0,
+        "h": 0
       }
     }
+  },
+  "verification_protocol": {
+    "doc": "docs/arf_methodology.md",
+    "fixture_path": "tests/fixtures/arf_golden_cases.json",
+    "test_runner": "tests/run_arf_golden_tests.mjs",
+    "npm_script": "test:arf",
+    "minimum_golden_cases_per_region": 6,
+    "tolerance_abs": 0.005,
+    "shape_tests_required": true,
+    "steps": [
+      "Transcribe ARR2019 Book 2 Ch. 4 Table 2.4.1 coefficients into regions[<key>].coefficients and update source_note to cite the table.",
+      "Add at least 6 golden cases per region to tests/fixtures/arf_golden_cases.json, taken from ARR2019 worked examples or the ARR Data Hub.",
+      "Run `node tests/run_arf_golden_tests.mjs` (or `npm run test:arf`).",
+      "If shape tests pass and all golden cases are within tolerance, set regions[<key>].verified=true and the top-level verified=true; populate verification_status.",
+      "Re-run after any coefficient change."
+    ]
+  },
+  "verification_status": {
+    "last_run_at": "2026-05-06T22:45:18.069Z",
+    "shape_tests_passed": true,
+    "golden_cases_passed": 0,
+    "golden_cases_total": 0,
+    "max_abs_error": 0,
+    "tolerance_abs": 0.005,
+    "regions_verified": []
   }
 }

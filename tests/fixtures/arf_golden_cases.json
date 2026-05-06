@@ -1,0 +1,69 @@
+{
+  "schema_version": "stormgrid.arf_golden.v1",
+  "default_tolerance_abs": 0.005,
+  "shape_tests": [
+    {
+      "id": "arf_le_one",
+      "description": "ARF must not exceed 1.0 anywhere on the (area, duration, AEP) grid that the engine evaluates. Sweeps a small grid and checks the max output is <= 1.0 + epsilon.",
+      "type": "shape_max_one",
+      "params": {
+        "areas_km2":      [1, 10, 100, 1000, 10000],
+        "duration_hours": [24, 48, 72, 168],
+        "aep_fractions":  [0.20, 0.05, 0.02, 0.01]
+      }
+    },
+    {
+      "id": "arf_gt_zero",
+      "description": "ARF must be strictly > 0 for all in-range inputs.",
+      "type": "shape_min_positive",
+      "params": {
+        "areas_km2":      [1, 10, 100, 1000, 10000],
+        "duration_hours": [24, 48, 72, 168],
+        "aep_fractions":  [0.20, 0.05, 0.02, 0.01]
+      }
+    },
+    {
+      "id": "arf_monotonic_area",
+      "description": "ARF must be non-increasing with area (D, AEP held fixed).",
+      "type": "shape_monotonic_area",
+      "params": {
+        "areas_km2":      [1, 5, 25, 100, 500, 2500, 10000],
+        "duration_hours": [24, 72, 168],
+        "aep_fractions":  [0.05, 0.01]
+      }
+    },
+    {
+      "id": "arf_approaches_one_at_small_area",
+      "description": "At the validity floor (A=1 km²) ARF should be very close to 1.0 (<= 0.04 below 1.0).",
+      "type": "shape_small_area_near_one",
+      "params": {
+        "area_km2":          1,
+        "duration_hours":    [24, 48, 72, 168],
+        "aep_fractions":     [0.20, 0.01],
+        "max_distance_from_one": 0.04
+      }
+    },
+    {
+      "id": "arf_clipped_finite",
+      "description": "Even at extreme inputs, ARF must be finite and within (0, 1].",
+      "type": "shape_finite",
+      "params": {
+        "areas_km2":      [0.001, 50000, 200000],
+        "duration_hours": [1, 0.001, 1000, 5000],
+        "aep_fractions":  [0.5, 0.001]
+      }
+    }
+  ],
+  "golden_cases": [],
+  "_golden_case_template": {
+    "id":            "<short stable id, e.g. ECN_24h_5pct_50km2>",
+    "region":        "east_coast_north",
+    "area_km2":      0,
+    "duration_hours": 0,
+    "aep_fraction":   0.05,
+    "expected_arf":   0,
+    "source":         "ARR2019 Book 2 Ch. 4 …",
+    "tolerance_abs":  0.005,
+    "_note":          "Add at least 6 cases per region per docs/arf_methodology.md §4 step 2. Until then verified must remain false."
+  }
+}

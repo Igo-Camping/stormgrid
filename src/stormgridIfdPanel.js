@@ -432,7 +432,20 @@ function renderArfBanner(host, { arfResult, catchmentAreaKm2, cifd }) {
   const lines = [];
   if (!verified) {
     lines.push(`<strong>ARF COEFFICIENTS UNVERIFIED.</strong> Default placeholders are loaded; replace
-      <code>data/arf_coefficients.json</code> with your ARR2019 Book 2 Ch. 4 region values before any engineering use.`);
+      <code>data/arf_coefficients.json</code> with your ARR2019 Book 2 Ch. 4 region values, populate
+      <code>tests/fixtures/arf_golden_cases.json</code>, and run <code>npm run test:arf</code> per
+      <code>docs/arf_methodology.md</code> before any engineering use.`);
+  }
+  // Verification-status detail line (always shown — stamps the latest test run).
+  const vs = arfData.verification_status;
+  if (vs) {
+    const last = vs.last_run_at ? String(vs.last_run_at).replace('T', ' ').slice(0, 19) + ' UTC' : 'never';
+    const shape = vs.shape_tests_passed === true ? 'PASS' : (vs.shape_tests_passed === false ? 'FAIL' : '—');
+    const golden = `${vs.golden_cases_passed ?? 0}/${vs.golden_cases_total ?? 0}`;
+    const maxErr = (typeof vs.max_abs_error === 'number') ? vs.max_abs_error.toFixed(6) : '—';
+    lines.push(
+      `<small>Verification: shape tests <strong>${shape}</strong> · golden cases <strong>${escapeHtml(golden)}</strong> · max abs err <strong>${escapeHtml(maxErr)}</strong> · last run ${escapeHtml(last)}</small>`
+    );
   }
   if (!Number.isFinite(catchmentAreaKm2)) {
     lines.push('Catchment area unavailable for this catchment — ARF cannot be computed.');

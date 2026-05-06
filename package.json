@@ -1,0 +1,13 @@
+{
+  "name": "stormgrid",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Stormgrid — catchment rainfall preview. Static site at https://stormgrid.pluviometrics.com.au/.",
+  "type": "module",
+  "scripts": {
+    "test:arf":            "node tests/run_arf_golden_tests.mjs",
+    "test:arf:update":     "node tests/run_arf_golden_tests.mjs --update-status",
+    "build:rainfall":      "python scripts/build_static_rainfall.py --build-standard-windows",
+    "build:ifd":           "python scripts/build_catchment_ifd.py"
+  }
+}

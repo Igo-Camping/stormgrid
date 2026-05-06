@@ -106,6 +106,9 @@ export function buildEventFootprint({
       region:          arfData.default_region,
       coefficients:    arfData.regions ? (arfData.regions[arfData.default_region] || null) : null,
       catchment_area_km2: areaKm2,
+      verification_protocol: arfData.verification_protocol || null,
+      verification_status:   arfData.verification_status   || null,
+      methodology_doc:       (arfData.verification_protocol && arfData.verification_protocol.doc) || 'docs/arf_methodology.md',
       methodology_note: 'ARF-adjusted areal design rainfall only. No event AEP classification, no return period, no exceedance assertion. Verify coefficients against ARR2019 Book 2 Ch. 4 before any engineering use.',
     };
   }
