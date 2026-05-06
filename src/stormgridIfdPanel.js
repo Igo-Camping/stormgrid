@@ -14,6 +14,7 @@
    ARR2019 long-duration validity range. */
 
 import { computeArfTable, getRegion, getValidity, isVerified } from './stormgridArf.js';
+import { computeDurationComparison, summariseComparisons, COMPARISON_BANDS } from './stormgridDesignComparison.js';
 
 const DURATION_KEYS = ['3h', '6h', '12h', '24h', '48h', '72h'];
 const AEP_COLUMNS   = ['20%', '5%', '2%', '1%'];
@@ -115,6 +116,9 @@ export function renderIfdComparisonPanel(host, {
   }
 
   // ── Comparison table ────────────────────────────────────────────────
+  // Cache per-duration comparison so the summary panel can re-use it.
+  const comparisonByDuration = {};
+
   const table = document.createElement('table');
   table.className = 'stormgrid-ifd__table';
   const headerCells = [
@@ -126,6 +130,7 @@ export function renderIfdComparisonPanel(host, {
         ? `Areal design ${p} AEP`
         : `Point IFD ${p} AEP`
     ),
+    ...(ifdDisplayMode === 'arf' ? ['Comparison band'] : []),
     'Notes',
   ].map((h) => `<th>${escapeHtml(h)}</th>`).join('');
 
@@ -165,6 +170,23 @@ export function renderIfdComparisonPanel(host, {
       arfMeanCell = `<td class="stormgrid-ifd__num">—</td>`;
     }
 
+    // For ARF mode, build the per-AEP design depths and run the comparison.
+    let arfDepthsByAep = null;
+    if (ifdDisplayMode === 'arf' && ifdRow && ifdRow.aep && ifdRow.quality_flag !== 'suspect_non_monotonic') {
+      arfDepthsByAep = {};
+      AEP_COLUMNS.forEach((p) => {
+        const v = ifdRow.aep[p];
+        const arf = arfPerAep ? arfPerAep[p] : null;
+        if (typeof v === 'number' && typeof arf === 'number') {
+          arfDepthsByAep[p] = v * arf;
+        }
+      });
+    }
+    const comparison = (ifdDisplayMode === 'arf' && arfDepthsByAep && obsVal != null)
+      ? computeDurationComparison({ observedMm: obsVal, arfDepthsByAep })
+      : null;
+    if (comparison) comparisonByDuration[dk] = comparison;
+
     const aepCells = AEP_COLUMNS.map((p) => {
       if (!ifdRow || !ifdRow.aep) return '—';
       const v = ifdRow.aep[p];
@@ -173,10 +195,28 @@ export function renderIfdComparisonPanel(host, {
         const arf = arfPerAep ? arfPerAep[p] : null;
         if (arf == null) return `${fmt(v)} <small>· ARF —</small>`;
         const adj = v * arf;
-        return `${adj.toFixed(1)}`;
+        const r = comparison && comparison.per_aep && comparison.per_aep[p] && comparison.per_aep[p].ratio;
+        const ratioFrag = (typeof r === 'number')
+          ? ` <small>(${r < 0.01 ? r.toExponential(1) : r.toFixed(2)}×)</small>`
+          : '';
+        return `${adj.toFixed(1)}${ratioFrag}`;
       }
       return `${fmt(v)}`;
     });
+
+    let comparisonCell = '';
+    if (ifdDisplayMode === 'arf') {
+      if (comparison && comparison.strongest_band) {
+        const band = comparison.strongest_band;
+        const label = (COMPARISON_BANDS.find((b) => b.key === band) || {}).label || band;
+        const aep = comparison.headline && comparison.headline.reference_aep
+          ? ` <small>(rarest: ${escapeHtml(comparison.headline.reference_aep)} AEP)</small>`
+          : '';
+        comparisonCell = `<td><span class="stormgrid-cmpband stormgrid-cmpband--${escapeAttr(band)}">${escapeHtml(label)}</span>${aep}</td>`;
+      } else {
+        comparisonCell = `<td class="stormgrid-ifd__notes">—</td>`;
+      }
+    }
 
     const notes = [];
     if (!obs) notes.push('No observed data for this duration in the current window.');
@@ -196,6 +236,7 @@ export function renderIfdComparisonPanel(host, {
       <td class="stormgrid-ifd__num">${obsCell}</td>
       ${arfMeanCell}
       ${aepCells.map((c) => `<td class="stormgrid-ifd__num">${c}</td>`).join('')}
+      ${comparisonCell}
       <td class="stormgrid-ifd__notes">${escapeHtml(notesText)}</td>
     </tr>`;
   }).join('');
@@ -206,6 +247,11 @@ export function renderIfdComparisonPanel(host, {
   host.appendChild(renderIfdChart(cifd, durationStatsByKey || {}, {
     ifdDisplayMode, arfBundle, catchmentAreaKm2,
   }));
+
+  // ── ARF-adjusted comparison summary (ARF mode only) ─────────────────
+  if (ifdDisplayMode === 'arf' && Object.keys(comparisonByDuration).length > 0) {
+    host.appendChild(renderComparisonSummary(comparisonByDuration));
+  }
 
   // ── Footer methodology card ─────────────────────────────────────────
   const foot = document.createElement('p');
@@ -224,6 +270,52 @@ export function renderIfdComparisonPanel(host, {
       Catchment-mean rainfall should be compared to ARF-adjusted areal design rainfall before assigning event AEP.
     `;
   host.appendChild(foot);
+}
+
+function renderComparisonSummary(comparisonByDuration) {
+  const wrap = document.createElement('section');
+  wrap.className = 'stormgrid-cmpsummary';
+  const summary = summariseComparisons(comparisonByDuration);
+  const rarest = summary.rarest_reference_reached;
+  const overall = summary.strongest_band_overall;
+  const overallLabel = overall
+    ? (COMPARISON_BANDS.find((b) => b.key === overall) || {}).label || overall
+    : null;
+
+  const headline = rarest
+    ? `Observed catchment-mean rainfall reached the ${escapeHtml(rarest)} ARF-adjusted areal design depth at one or more durations.`
+    : (overallLabel
+        ? `Strongest band reached: <strong>${escapeHtml(overallLabel)}</strong> — observed catchment-mean did not match any ARF-adjusted design reference depth.`
+        : `No comparable ARF-adjusted design depths in the current view.`);
+
+  const rows = Object.entries(comparisonByDuration).map(([dk, c]) => {
+    const headlineLabel = c.headline
+      ? (c.headline.reached_or_above
+          ? `Reached ${escapeHtml(c.headline.reference_aep)} AEP areal depth (ratio ≥ 1.0)`
+          : `Closest: ${escapeHtml(c.headline.reference_aep)} AEP at ratio ${c.headline.ratio != null ? c.headline.ratio.toFixed(2) : '—'}×`)
+      : '—';
+    const band = c.strongest_band || 'unknown';
+    const bandLabel = (COMPARISON_BANDS.find((b) => b.key === band) || {}).label || 'Unknown';
+    return `<li>
+      <span class="stormgrid-cmpsummary__dur">${escapeHtml(dk)}</span>
+      <span class="stormgrid-cmpband stormgrid-cmpband--${escapeAttr(band)}">${escapeHtml(bandLabel)}</span>
+      <span class="stormgrid-cmpsummary__detail">${headlineLabel}</span>
+    </li>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <h4>ARF-adjusted comparison summary</h4>
+    <p class="stormgrid-cmpsummary__headline">${headline}</p>
+    <ul class="stormgrid-cmpsummary__list">${rows}</ul>
+    <p class="stormgrid-cmpsummary__note">
+      <strong>Comparison only.</strong>
+      Stormgrid does <em>not</em> classify event AEP, does <em>not</em> compute return periods,
+      does <em>not</em> assert exceedance. ARF-adjusted comparisons are conditional on the
+      coefficient set in <code>data/arf_coefficients.json</code> — verify against ARR2019
+      Book 2 Ch. 4 before any engineering use.
+    </p>
+  `;
+  return wrap;
 }
 
 function renderArfBanner(host, { arfResult, catchmentAreaKm2, cifd }) {
@@ -381,4 +473,8 @@ function escapeHtml(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function escapeAttr(s) {
+  return String(s == null ? '' : s).replace(/[^a-zA-Z0-9_-]/g, '');
 }

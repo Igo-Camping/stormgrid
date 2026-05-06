@@ -4,6 +4,12 @@
    — only reads what's already in state + the loaded JSON. */
 
 import { buildCatchmentRanking } from './stormgridRanking.js';
+import { computeArfTable, getRegion, getValidity } from './stormgridArf.js';
+import { computeDurationComparison, summariseComparisons } from './stormgridDesignComparison.js';
+
+const DURATION_KEYS = ['3h', '6h', '12h', '24h', '48h', '72h'];
+const DURATION_HOURS = { '3h': 3, '6h': 6, '12h': 12, '24h': 24, '48h': 48, '72h': 72 };
+const AEP_COLUMNS    = ['20%', '5%', '2%', '1%'];
 
 export const FOOTPRINT_SCHEMA = 'stormgrid.event_footprint.v1';
 
@@ -102,6 +108,50 @@ export function buildEventFootprint({
     };
   }
 
+  // Phase 8 — comparison interpretation. Built only when ARF mode AND
+  // we have everything needed to run a real comparison; flags assert
+  // that no AEP / return-period / exceedance claim has been made.
+  let comparisonSummary = null;
+  if (arfEngine && pointIfd && pointIfd.selected_catchment && Number.isFinite(arfEngine.catchment_area_km2)) {
+    const region = getRegion(arfResult.data);
+    const validity = getValidity(arfResult.data);
+    const coeff = region && region.coefficients;
+    const cifdDurs = pointIfd.selected_catchment.durations || {};
+    const observedByDur = {};
+    if (ok && selectedCatchmentId) {
+      const cRow = data.catchments && data.catchments[selectedCatchmentId];
+      if (cRow && cRow.duration_stats) {
+        for (const dk of DURATION_KEYS) {
+          const ds = cRow.duration_stats[dk];
+          if (ds && typeof ds.max_total_mm === 'number') observedByDur[dk] = ds.max_total_mm;
+        }
+      }
+    }
+    const byDur = {};
+    for (const dk of DURATION_KEYS) {
+      const ifdRow = cifdDurs[dk];
+      if (!ifdRow || ifdRow.quality_flag === 'suspect_non_monotonic' || !ifdRow.aep) continue;
+      if (!coeff) continue;
+      const t = computeArfTable({
+        areaKm2: arfEngine.catchment_area_km2,
+        durationHours: DURATION_HOURS[dk],
+        aepKeys: AEP_COLUMNS,
+        coefficients: coeff,
+        validity,
+      });
+      const arfDepthsByAep = {};
+      for (const p of AEP_COLUMNS) {
+        const v = ifdRow.aep[p];
+        const ar = t.arf_by_aep[p] && t.arf_by_aep[p].arf;
+        if (typeof v === 'number' && typeof ar === 'number') arfDepthsByAep[p] = v * ar;
+      }
+      const obs = observedByDur[dk];
+      if (typeof obs !== 'number' || Object.keys(arfDepthsByAep).length === 0) continue;
+      byDur[dk] = computeDurationComparison({ observedMm: obs, arfDepthsByAep });
+    }
+    if (Object.keys(byDur).length > 0) comparisonSummary = summariseComparisons(byDur);
+  }
+
   return {
     schema_version:        FOOTPRINT_SCHEMA,
     generated_at:          new Date().toISOString(),
@@ -121,6 +171,7 @@ export function buildEventFootprint({
     } : null,
     point_ifd:       pointIfd,
     arf_engine:      arfEngine,
+    comparison_summary: comparisonSummary,
     catchment_count: catchments.length,
     catchments,
   };
