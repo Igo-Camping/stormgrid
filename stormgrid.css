@@ -650,3 +650,67 @@ html, body {
   border-radius: 3px;
   border: 1px solid rgba(0,0,0,0.18);
 }
+
+/* ── Controls strip: Last built + window selector ──────────────────── */
+
+.stormgrid-controls {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+  margin: 0 0 12px;
+  flex-wrap: wrap;
+}
+.stormgrid-controls > div { flex: 1 1 auto; min-width: 280px; }
+.stormgrid-controls .stormgrid-lastbuilt { margin: 0; }
+
+.stormgrid-windowsel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: var(--sg-card-bg);
+  border: 1px solid var(--sg-line);
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+.stormgrid-windowsel__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sg-muted);
+}
+.stormgrid-windowsel__group {
+  display: inline-flex;
+  border: 1px solid var(--sg-line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--sg-default-bg);
+}
+.stormgrid-windowsel__btn {
+  padding: 6px 14px;
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--sg-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  border-right: 1px solid var(--sg-line);
+}
+.stormgrid-windowsel__btn:last-child { border-right: 0; }
+.stormgrid-windowsel__btn:hover { background: rgba(0, 88, 91, 0.08); color: var(--sg-fg); }
+.stormgrid-windowsel__btn--active {
+  background: var(--sg-accent);
+  color: white;
+}
+.stormgrid-windowsel__btn--active:hover {
+  background: var(--sg-accent);
+  color: white;
+}
+.stormgrid-windowsel__sub {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--sg-muted);
+}

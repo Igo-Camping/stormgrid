@@ -199,6 +199,42 @@ export function renderLastBuiltStrip(host, { rainfallResult }) {
   `;
 }
 
+/* Window selector — segmented button group.
+   `windows`: [{ key, label }]
+   `selectedKey`: currently selected window key
+   `onChange(newKey)`: callback */
+export function renderWindowSelector(host, { windows, selectedKey, onChange }) {
+  host.innerHTML = '';
+  host.classList.add('stormgrid-windowsel');
+  const label = document.createElement('span');
+  label.className = 'stormgrid-windowsel__label';
+  label.textContent = 'Accumulation window';
+  host.appendChild(label);
+  const group = document.createElement('div');
+  group.className = 'stormgrid-windowsel__group';
+  group.setAttribute('role', 'radiogroup');
+  group.setAttribute('aria-label', 'Precomputed rainfall accumulation window');
+  windows.forEach((w) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'stormgrid-windowsel__btn'
+      + (w.key === selectedKey ? ' stormgrid-windowsel__btn--active' : '');
+    btn.textContent = w.label;
+    btn.dataset.windowKey = w.key;
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-checked', w.key === selectedKey ? 'true' : 'false');
+    btn.addEventListener('click', () => {
+      if (w.key !== selectedKey && typeof onChange === 'function') onChange(w.key);
+    });
+    group.appendChild(btn);
+  });
+  host.appendChild(group);
+  const sub = document.createElement('span');
+  sub.className = 'stormgrid-windowsel__sub';
+  sub.textContent = '(precomputed accumulation, not a rolling re-aggregation)';
+  host.appendChild(sub);
+}
+
 function blockMessage(html, variant) {
   const el = document.createElement('p');
   el.className = 'stormgrid-availmsg' + (variant ? ` stormgrid-availmsg--${variant}` : '');

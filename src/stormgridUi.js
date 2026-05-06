@@ -1,11 +1,16 @@
 /* Stormgrid — UI shell.
-   Top-of-page strip: prominent Last built timestamp.
+   Top: Last built strip + accumulation-window selector.
    Top section: catchment map (left), availability + selected results (right).
-   Below: card grid + run bar + frame log panel. */
+   Below: card grid + run bar + frame log panel.
+
+   Window changes are auto-refreshing: existing catchment selection and Run
+   state persist if the new dataset still has the catchment; if it doesn't,
+   the availability panel shows "No precomputed data for <id> in this
+   window" and Run is gated. */
 
 import {
   createStormgridState, markManuallyChanged, STATUS,
-  setSelectedCatchment, setRainfallData,
+  setSelectedCatchment, setRainfallData, setSelectedWindow,
   recordAnalysisRun, clearAnalysisRun,
 } from './stormgridState.js';
 import { buildDefaults }            from './stormgridDefaults.js';
@@ -13,10 +18,20 @@ import { buildReviewModel }         from './stormgridReviewModel.js';
 import { validateRunReadiness }     from './stormgridValidation.js';
 import { registerStormgridMap, getMapContext } from './stormgridMapBridge.js';
 import { mountCatchmentMap, applyConfidenceStyling } from './stormgridCatchmentMap.js';
-import { loadStormgridData, getCatchmentRow }      from './stormgridDataLoader.js';
-import { renderAvailabilityPanel, renderFrameLogPanel, renderLastBuiltStrip } from './stormgridAvailability.js';
+import {
+  loadRainfallData, getCatchmentRow,
+  getAvailableRainfallWindows, DEFAULT_WINDOW_KEY,
+} from './stormgridDataLoader.js';
+import {
+  renderAvailabilityPanel, renderFrameLogPanel,
+  renderLastBuiltStrip, renderWindowSelector,
+} from './stormgridAvailability.js';
 
 const NS = 'stormgrid';
+// Selector lists the three precomputed windows; "latest" is exposed as
+// the implicit default (a copy of 24h) and not shown as a separate tile.
+const SELECTOR_WINDOWS = getAvailableRainfallWindows()
+  .filter((w) => w.key !== 'latest');
 
 export function mountStormgridShell(host, options = {}) {
   if (!host || !(host instanceof HTMLElement)) {
@@ -32,9 +47,13 @@ export function mountStormgridShell(host, options = {}) {
   host.innerHTML = '';
 
   // ── Layout ────────────────────────────────────────────────────────────
-  const lastBuiltStrip = document.createElement('div');
-  lastBuiltStrip.className = `${NS}-lastbuilt`;
-  host.appendChild(lastBuiltStrip);
+  const controlsStrip = document.createElement('div');
+  controlsStrip.className = `${NS}-controls`;
+  const lastBuiltHost = document.createElement('div');
+  const windowSelHost = document.createElement('div');
+  controlsStrip.appendChild(lastBuiltHost);
+  controlsStrip.appendChild(windowSelHost);
+  host.appendChild(controlsStrip);
 
   const header = document.createElement('header');
   header.className = `${NS}-header`;
@@ -97,7 +116,12 @@ export function mountStormgridShell(host, options = {}) {
     grid.innerHTML = '';
     cards.forEach((card) => grid.appendChild(renderCard(card, onEdit)));
 
-    renderLastBuiltStrip(lastBuiltStrip, { rainfallResult });
+    renderLastBuiltStrip(lastBuiltHost, { rainfallResult });
+    renderWindowSelector(windowSelHost, {
+      windows: SELECTOR_WINDOWS,
+      selectedKey: state.selectedWindow,
+      onChange: onWindowChange,
+    });
     renderAvailabilityPanel(availHost, {
       rainfallResult,
       selected,
@@ -132,6 +156,22 @@ export function mountStormgridShell(host, options = {}) {
     render();
   }
 
+  function onWindowChange(newKey) {
+    if (newKey === state.selectedWindow) return;
+    setSelectedWindow(state, newKey);
+    rainfallResult = null;
+    setRainfallData(state, null, null);
+    render();
+    loadRainfallData(newKey).then((res) => {
+      if (state.selectedWindow !== newKey) return; // newer click superseded this
+      rainfallResult = res;
+      if (res.ok) setRainfallData(state, res.data, null);
+      else        setRainfallData(state, null, res.error);
+      if (mapHandle && res.ok) applyConfidenceStyling(mapHandle, res.data);
+      render();
+    });
+  }
+
   render();
 
   // ── Async wiring ──────────────────────────────────────────────────────
@@ -139,14 +179,13 @@ export function mountStormgridShell(host, options = {}) {
     .then((handle) => {
       mapHandle = handle;
       if (handle.map && options.map) registerStormgridMap(handle.map);
-      // If rainfall already loaded by the time the map is ready, restyle now.
       if (rainfallResult && rainfallResult.ok) {
         applyConfidenceStyling(mapHandle, rainfallResult.data);
       }
     })
     .catch((err) => { console.error('Stormgrid map mount failed:', err); });
 
-  loadStormgridData().then((res) => {
+  loadRainfallData(state.selectedWindow || DEFAULT_WINDOW_KEY).then((res) => {
     rainfallResult = res;
     if (res.ok) setRainfallData(state, res.data, null);
     else        setRainfallData(state, null, res.error);
@@ -157,6 +196,7 @@ export function mountStormgridShell(host, options = {}) {
   return {
     state,
     rerender: render,
+    setWindow: onWindowChange,
     destroy() { host.innerHTML = ''; host.classList.remove(`${NS}-root`); },
   };
 }

@@ -44,6 +44,7 @@ export function createStormgridState() {
     selectedCatchmentFeature: null,
     rainfallData: null,
     rainfallError: null,
+    selectedWindow: '24h',
     analysisRun: false,
     lastRunAt: null,
     cards: CARD_KEYS.reduce((acc, key) => {
@@ -87,6 +88,11 @@ export function setRainfallData(state, data, error) {
   state.rainfallData = data || null;
   state.rainfallError = error || null;
   state.integrationReady = !!data;
+  return state;
+}
+
+export function setSelectedWindow(state, windowKey) {
+  state.selectedWindow = String(windowKey || '24h');
   return state;
 }
 

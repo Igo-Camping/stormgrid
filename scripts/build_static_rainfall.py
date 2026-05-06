@@ -3,59 +3,42 @@
 
 Local-only. The Lizard archive itself stays on the operator's laptop — pass
 its path with --archive (or set STORMGRID_LIZARD_DIR). Output is the small
-JSON the live site reads at /data/catchment_rainfall_latest.json.
+JSON the live site reads at /data/catchment_rainfall_*.json.
 
 Reads:
     data/catchments/catchments_dissolved.geojson
     <archive>/raw_payloads/*.tif
 
-Writes (compact JSON):
-    data/catchment_rainfall_latest.json
+Single-window mode (default and back-compat):
+    python scripts/build_static_rainfall.py --hours 24 --archive PATH
+    python scripts/build_static_rainfall.py --hours 168 --window-name 7d --archive PATH
 
-Schema v2 ("stormgrid.catchment_rainfall.v2") adds real coverage and
-confidence fields per catchment plus a top-level frame_log:
+Standard-windows mode (one frame-pass, multiple JSONs):
+    python scripts/build_static_rainfall.py --build-standard-windows --archive PATH
+        writes data/catchment_rainfall_24h.json
+        writes data/catchment_rainfall_7d.json
+        writes data/catchment_rainfall_30d.json
+        writes data/catchment_rainfall_latest.json (copy of 24h)
 
-{
-  "schema_version": "stormgrid.catchment_rainfall.v2",
-  "generated_at": "<ISO UTC>",
-  "source": "lizard_precipitation_australia",
-  "window": {"start": "<ISO>", "end": "<ISO>", "frame_count": <n>},
-  "quality": {
-    "coverage_rule": "valid pixel-frame samples / candidate pixel-frame samples",
-    "low_coverage_threshold": 0.70,
-    "high_confidence_threshold": 0.90,
-    "notes": [...]
-  },
-  "frame_log": [
-    {"timestamp", "status", "catchments_with_valid_data",
-     "catchments_missing_data", "notes"}
-  ],
-  "catchments": {
-    "<id>": {
-      "total_mm", "mean_mm", "min_mm", "max_mm", "sample_count",
-      "coverage_fraction", "coverage_pct",
-      "frames_used", "frames_missing", "frames_partial", "frame_count",
-      "confidence"
-    }
-  }
-}
+All outputs use schema_version: stormgrid.catchment_rainfall.v2.
 
 Rules:
 - No placeholder values. If denominator is unsafe, report null + reason.
-- Catchments with zero candidate pixel-frame samples (no overlap with the
-  raster) are skipped entirely. Catchments with samples but zero valid
-  values get coverage_fraction = 0 and confidence = "low".
-- Missing / unreadable frames are logged and skipped.
+- Catchments with zero candidate pixel-frame samples are skipped.
+- Missing / unreadable frames are logged and skipped without aborting.
+- Does not import Stormgauge code. No AEP/IFD/ARF logic.
 
 Usage:
-    python scripts/build_static_rainfall.py [--hours N] [--end ISO] \\
-        [--archive PATH]
+    python scripts/build_static_rainfall.py [-h] [--hours N] [--window-name N]
+        [--end ISO] [--archive PATH] [--build-standard-windows]
 """
 import argparse
 import glob
 import json
 import os
+import shutil
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -68,27 +51,44 @@ from pyproj import Transformer
 
 REPO            = Path(__file__).resolve().parent.parent
 CATCHMENT_PATH  = REPO / 'data/catchments/catchments_dissolved.geojson'
-OUT_PATH        = REPO / 'data/catchment_rainfall_latest.json'
+OUT_DIR         = REPO / 'data'
 
 DEFAULT_ARCHIVE = os.environ.get('STORMGRID_LIZARD_DIR', '')
 
-SOURCE_NAME           = 'lizard_precipitation_australia'
-SCHEMA_VERSION        = 'stormgrid.catchment_rainfall.v2'
-LOW_COVERAGE_THRESH   = 0.70
+SOURCE_NAME            = 'lizard_precipitation_australia'
+SCHEMA_VERSION         = 'stormgrid.catchment_rainfall.v2'
+LOW_COVERAGE_THRESH    = 0.70
 HIGH_CONFIDENCE_THRESH = 0.90
+
+# Standard window definitions (name, hours).
+STANDARD_WINDOWS = [
+    ('24h',  24),
+    ('7d',   168),
+    ('30d',  720),
+]
+DEFAULT_LATEST_FROM = '24h'  # latest is a copy of this window's output
 
 
 def parse_args():
     ap = argparse.ArgumentParser(description=__doc__.split('\n', 1)[0])
     ap.add_argument('--hours', type=int, default=24,
                     help='Trailing window in hours (default 24)')
+    ap.add_argument('--window-name', type=str, default=None,
+                    help='Output filename suffix; e.g. 24h, 7d, 30d. '
+                         'If omitted, single-window mode writes catchment_rainfall_latest.json.')
     ap.add_argument('--end', type=str, default=None,
                     help='ISO UTC end of window (default: timestamp of latest frame)')
     ap.add_argument('--archive', type=str, default=DEFAULT_ARCHIVE,
                     help='Path to Lizard archive root (containing raw_payloads/). '
                          'Defaults to $STORMGRID_LIZARD_DIR.')
+    ap.add_argument('--build-standard-windows', action='store_true',
+                    help='Build 24h, 7d, 30d in a single frame pass (also updates latest).')
     return ap.parse_args()
 
+
+# ──────────────────────────────────────────────────────────────────────────
+# IO helpers
+# ──────────────────────────────────────────────────────────────────────────
 
 def parse_frame_ts(filename):
     base = os.path.basename(filename)
@@ -116,7 +116,8 @@ def load_catchments_in_4326(path):
     return out, str(src_crs)
 
 
-def collect_frames(archive_root, end_dt, hours):
+def collect_frames_window(archive_root, end_dt, hours):
+    """Return (frames sorted by ts, start_dt, end_dt) for the requested window."""
     pattern = os.path.join(archive_root, 'raw_payloads', '*.tif')
     paths = sorted(glob.glob(pattern))
     if not paths:
@@ -135,21 +136,23 @@ def collect_frames(archive_root, end_dt, hours):
     return out, start_dt, end_dt
 
 
-def mask_polygon(src, geom_4326_mapping, nodata):
-    """Return (inside_count, valid_count, valid_values) for a single (frame, polygon).
+# ──────────────────────────────────────────────────────────────────────────
+# Per-(frame, catchment) compact intermediates
+# ──────────────────────────────────────────────────────────────────────────
 
-    inside_count: pixels inside the polygon (regardless of nodata).
-    valid_count:  subset that is finite, not nodata, and not the sentinel.
-    valid_values: 1-D ndarray of those valid values (may be empty).
-    Raises on errors so caller can record 'error' for that (frame, catchment).
-    """
-    masked, _ = rio_mask(src, [geom_4326_mapping], crop=True, nodata=nodata, filled=False)
+def mask_polygon_to_intermediate(src, geom_4326_mapping, nodata):
+    """Return per-(frame, catchment) compact stats: a small dict, never the
+    pixel array. None on hard error; zero-row on no overlap."""
+    try:
+        masked, _ = rio_mask(src, [geom_4326_mapping], crop=True, nodata=nodata, filled=False)
+    except (ValueError, rasterio.errors.RasterioError):
+        return {'inside': 0, 'valid': 0, 'mean': None, 'min': None, 'max': None}
     arr = masked[0]
     if hasattr(arr, 'mask') and arr.mask is not np.ma.nomask:
         inside_mask = ~arr.mask
         inside_count = int(np.count_nonzero(inside_mask))
         if inside_count == 0:
-            return 0, 0, np.array([], dtype=arr.dtype)
+            return {'inside': 0, 'valid': 0, 'mean': None, 'min': None, 'max': None}
         inside_values = np.asarray(arr.data)[inside_mask]
     else:
         inside_count = int(arr.size)
@@ -159,8 +162,60 @@ def mask_polygon(src, geom_4326_mapping, nodata):
     if nodata is not None:
         valid = valid[valid != nodata]
     valid = valid[valid > -1000.0]
-    return inside_count, int(valid.size), valid
 
+    if valid.size == 0:
+        return {'inside': inside_count, 'valid': 0, 'mean': None, 'min': None, 'max': None}
+    return {
+        'inside': inside_count,
+        'valid':  int(valid.size),
+        'mean':   float(np.mean(valid)),
+        'min':    float(np.min(valid)),
+        'max':    float(np.max(valid)),
+    }
+
+
+def collect_intermediates(archive_root, end_dt, hours, catchments):
+    """Iterate frames in [end - hours, end], compute per-(frame, catchment)
+    compact intermediates, return:
+      frames: list of (ts, path)
+      intermediates: dict[ts -> dict[cid -> stats]]
+      (window start_dt, end_dt)
+      frames_skipped: int
+    """
+    frames, start_dt, end_dt = collect_frames_window(archive_root, end_dt, hours)
+    intermediates = {}
+    frames_skipped = 0
+    if not frames:
+        return frames, intermediates, start_dt, end_dt, frames_skipped
+
+    cids = [c['id'] for c in catchments]
+    for i, (ts, path) in enumerate(frames):
+        if i % 50 == 0 or i == len(frames) - 1:
+            print(f'[stormgrid]   frame {i+1}/{len(frames)}: {ts.isoformat()}', file=sys.stderr)
+        if not os.path.exists(path):
+            print(f'[stormgrid]   missing: {path}', file=sys.stderr)
+            frames_skipped += 1
+            intermediates[ts] = {cid: {'inside': 0, 'valid': 0, 'mean': None, 'min': None, 'max': None}
+                                  for cid in cids}
+            continue
+        try:
+            with rasterio.open(path) as src:
+                nodata = src.nodata
+                row = {}
+                for c in catchments:
+                    row[c['id']] = mask_polygon_to_intermediate(src, c['geom_4326_mapping'], nodata)
+                intermediates[ts] = row
+        except Exception as exc:
+            print(f'[stormgrid]   error reading {os.path.basename(path)}: {exc}', file=sys.stderr)
+            frames_skipped += 1
+            intermediates[ts] = {cid: {'inside': 0, 'valid': 0, 'mean': None, 'min': None, 'max': None}
+                                  for cid in cids}
+    return frames, intermediates, start_dt, end_dt, frames_skipped
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Window aggregation
+# ──────────────────────────────────────────────────────────────────────────
 
 def confidence_for(coverage_fraction, frames_missing):
     if coverage_fraction is None:
@@ -171,6 +226,158 @@ def confidence_for(coverage_fraction, frames_missing):
         return 'high'
     return 'medium'
 
+
+def aggregate_window(catchments, intermediates, ts_in_window):
+    """Aggregate the window's intermediates into a payload-ready dict.
+    Returns (payload_catchments, frame_log, frames_used).
+    intermediates: dict[ts -> dict[cid -> stats]] (covers a superset)
+    ts_in_window: list of timestamps (sorted) within this window's [start, end]"""
+    cids = [c['id'] for c in catchments]
+    frame_records = []
+    frames_used = 0
+    frame_count_total = len(ts_in_window)
+
+    # per-catchment accumulators (ints/floats only, no big arrays)
+    per_inside  = {cid: 0 for cid in cids}
+    per_valid   = {cid: 0 for cid in cids}
+    per_means   = {cid: [] for cid in cids}
+    per_min     = {cid: None for cid in cids}
+    per_max     = {cid: None for cid in cids}
+    per_used    = {cid: 0 for cid in cids}
+    per_missing = {cid: 0 for cid in cids}
+    per_partial = {cid: 0 for cid in cids}
+
+    for ts in ts_in_window:
+        row = intermediates.get(ts)
+        if row is None:
+            # Frame not loaded at all; treat as fully missing for every catchment.
+            frame_records.append({
+                'timestamp': ts.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'status': 'missing',
+                'catchments_with_valid_data': 0,
+                'catchments_missing_data': len(cids),
+                'notes': 'frame not in intermediates',
+            })
+            for cid in cids:
+                per_missing[cid] += 1
+            continue
+
+        per_catch_status = {}
+        for cid in cids:
+            it = row.get(cid) or {'inside': 0, 'valid': 0, 'mean': None, 'min': None, 'max': None}
+            per_inside[cid] += int(it['inside'])
+            per_valid[cid]  += int(it['valid'])
+            if it['valid'] > 0:
+                per_used[cid] += 1
+                per_means[cid].append(float(it['mean']))
+                per_min[cid] = it['min'] if per_min[cid] is None else min(per_min[cid], it['min'])
+                per_max[cid] = it['max'] if per_max[cid] is None else max(per_max[cid], it['max'])
+                frame_cov = it['valid'] / it['inside'] if it['inside'] > 0 else 0.0
+                per_catch_status[cid] = 'valid' if frame_cov >= LOW_COVERAGE_THRESH else 'partial'
+                if 0.0 < frame_cov < LOW_COVERAGE_THRESH:
+                    per_partial[cid] += 1
+            else:
+                per_missing[cid] += 1
+                per_catch_status[cid] = 'missing'
+
+        cnt_valid_or_partial = sum(1 for s in per_catch_status.values() if s in ('valid', 'partial'))
+        cnt_partial = sum(1 for s in per_catch_status.values() if s == 'partial')
+        cnt_missing = sum(1 for s in per_catch_status.values() if s == 'missing')
+        if cnt_valid_or_partial == 0:
+            frame_status = 'missing'
+        elif cnt_missing == 0:
+            frame_status = 'valid'
+        else:
+            frame_status = 'partial'
+        notes_parts = []
+        if cnt_partial:  notes_parts.append(f'{cnt_partial} partial')
+        if cnt_missing:  notes_parts.append(f'{cnt_missing} missing')
+        frame_records.append({
+            'timestamp': ts.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'status': frame_status,
+            'catchments_with_valid_data': cnt_valid_or_partial,
+            'catchments_missing_data': cnt_missing,
+            'notes': '; '.join(notes_parts),
+        })
+        if frame_status != 'missing':
+            frames_used += 1
+
+    out_catchments = {}
+    for cid in cids:
+        if per_inside[cid] == 0:
+            continue   # no overlap with raster across the entire window — skip
+        coverage_fraction = per_valid[cid] / per_inside[cid] if per_inside[cid] > 0 else None
+        means = per_means[cid]
+        if not means:
+            out_catchments[cid] = {
+                'total_mm':          None,
+                'mean_mm':           None,
+                'min_mm':            None,
+                'max_mm':            None,
+                'sample_count':      0,
+                'coverage_fraction': 0.0,
+                'coverage_pct':      0.0,
+                'frames_used':       0,
+                'frames_missing':    int(per_missing[cid]),
+                'frames_partial':    int(per_partial[cid]),
+                'frame_count':       frame_count_total,
+                'confidence':        'low',
+            }
+            continue
+
+        out_catchments[cid] = {
+            'total_mm':          round(float(sum(means)), 4),
+            'mean_mm':           round(float(sum(means) / len(means)), 4),
+            'min_mm':            round(float(per_min[cid]), 4) if per_min[cid] is not None else None,
+            'max_mm':            round(float(per_max[cid]), 4) if per_max[cid] is not None else None,
+            'sample_count':      int(per_valid[cid]),
+            'coverage_fraction': round(float(coverage_fraction), 4),
+            'coverage_pct':      round(float(coverage_fraction * 100), 1),
+            'frames_used':       int(per_used[cid]),
+            'frames_missing':    int(per_missing[cid]),
+            'frames_partial':    int(per_partial[cid]),
+            'frame_count':       frame_count_total,
+            'confidence':        confidence_for(coverage_fraction, int(per_missing[cid])),
+        }
+
+    return out_catchments, frame_records, frames_used
+
+
+def make_payload(out_catchments, frame_records, start_dt, end_dt, frames_used):
+    return {
+        'schema_version': SCHEMA_VERSION,
+        'generated_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'source': SOURCE_NAME,
+        'window': {
+            'start': start_dt.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'end':   end_dt.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'frame_count': frames_used,
+        },
+        'quality': {
+            'coverage_rule': 'valid pixel-frame samples / candidate pixel-frame samples',
+            'low_coverage_threshold':    LOW_COVERAGE_THRESH,
+            'high_confidence_threshold': HIGH_CONFIDENCE_THRESH,
+            'notes': [
+                'Catchments below 70% coverage are flagged and should not be silently averaged.',
+                'Rainfall is uncalibrated Lizard precipitation archive output.',
+            ],
+        },
+        'frame_log': frame_records,
+        'catchments': out_catchments,
+    }
+
+
+def write_payload(payload, filename):
+    raw = json.dumps(payload, separators=(',', ':')).encode('utf-8')
+    out_path = OUT_DIR / filename
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_bytes(raw)
+    return out_path, len(raw)
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Main
+# ──────────────────────────────────────────────────────────────────────────
 
 def main():
     args = parse_args()
@@ -195,206 +402,66 @@ def main():
     print(f'[stormgrid] catchments: {CATCHMENT_PATH.relative_to(REPO)}', file=sys.stderr)
     catchments, catchment_src_crs = load_catchments_in_4326(CATCHMENT_PATH)
     print(f'[stormgrid] loaded {len(catchments)} catchments (src CRS: {catchment_src_crs})', file=sys.stderr)
+    print(f'[stormgrid] archive: {archive_root}', file=sys.stderr)
 
-    frames, start_dt, end_dt = collect_frames(archive_root, end_dt, args.hours)
+    if args.build_standard_windows:
+        # ── single frame pass over the largest window, aggregate three ways ──
+        max_hours = max(h for _, h in STANDARD_WINDOWS)
+        print(f'[stormgrid] building standard windows ({", ".join(n for n, _ in STANDARD_WINDOWS)}); '
+              f'pass over last {max_hours} h', file=sys.stderr)
+        t0 = time.monotonic()
+        frames, intermediates, max_start, max_end, frames_skipped = \
+            collect_intermediates(archive_root, end_dt, max_hours, catchments)
+        if not frames:
+            print(f'[stormgrid] no frames in window under {archive_root}', file=sys.stderr)
+            sys.exit(2)
+        print(f'[stormgrid] frame pass complete in {time.monotonic() - t0:.1f} s '
+              f'({len(frames)} frames, {frames_skipped} skipped)', file=sys.stderr)
+
+        ts_sorted = sorted(intermediates.keys())
+        for name, hours in STANDARD_WINDOWS:
+            wstart = max_end - timedelta(hours=hours)
+            ts_in = [t for t in ts_sorted if wstart <= t <= max_end]
+            t0 = time.monotonic()
+            out_catchments, frame_records, frames_used = aggregate_window(
+                catchments, intermediates, ts_in)
+            payload = make_payload(out_catchments, frame_records, wstart, max_end, frames_used)
+            out_path, size = write_payload(payload, f'catchment_rainfall_{name}.json')
+            print(f'[stormgrid]   {name}: {len(ts_in)} frames, {len(out_catchments)}/{len(catchments)} '
+                  f'catchments out, {size/1024:.2f} KB → {out_path.relative_to(REPO)} '
+                  f'(agg {time.monotonic() - t0:.2f} s)', file=sys.stderr)
+
+        # latest = copy of DEFAULT_LATEST_FROM
+        src_path = OUT_DIR / f'catchment_rainfall_{DEFAULT_LATEST_FROM}.json'
+        dst_path = OUT_DIR / 'catchment_rainfall_latest.json'
+        shutil.copyfile(src_path, dst_path)
+        print(f'[stormgrid]   latest = {DEFAULT_LATEST_FROM} (copied to {dst_path.relative_to(REPO)})',
+              file=sys.stderr)
+
+        print('[stormgrid] ----- summary -----', file=sys.stderr)
+        print(f'[stormgrid] total runtime:  {time.monotonic() - t0:.1f} s + frame pass', file=sys.stderr)
+        print(f'[stormgrid] schema:         {SCHEMA_VERSION}', file=sys.stderr)
+        return
+
+    # ── single-window mode ────────────────────────────────────────────────
+    frames, intermediates, start_dt, end_dt, frames_skipped = \
+        collect_intermediates(archive_root, end_dt, args.hours, catchments)
     if not frames:
         print(f'[stormgrid] no frames in window under {archive_root}', file=sys.stderr)
         sys.exit(2)
-    print(f'[stormgrid] archive: {archive_root}', file=sys.stderr)
     print(f'[stormgrid] window: {start_dt.isoformat()} -> {end_dt.isoformat()} '
-          f'({len(frames)} frames)', file=sys.stderr)
+          f'({len(frames)} frames, {frames_skipped} skipped)', file=sys.stderr)
 
-    cids = [c['id'] for c in catchments]
+    ts_sorted = sorted(intermediates.keys())
+    out_catchments, frame_records, frames_used = aggregate_window(
+        catchments, intermediates, ts_sorted)
+    payload = make_payload(out_catchments, frame_records, start_dt, end_dt, frames_used)
 
-    # Per-(catchment, frame) accumulators
-    per_inside  = {cid: [] for cid in cids}   # inside-pixel count per frame
-    per_valid   = {cid: [] for cid in cids}   # valid-pixel count per frame
-    per_pool    = {cid: [] for cid in cids}   # ndarrays of valid pixel values
-    per_means   = {cid: [] for cid in cids}   # per-frame catchment mean (only when valid > 0)
-
-    frame_records = []
-    frames_used = 0
-    frames_skipped = 0
-
-    for ts, path in frames:
-        if not os.path.exists(path):
-            print(f'[stormgrid]   missing: {path}', file=sys.stderr)
-            frames_skipped += 1
-            continue
-
-        per_catch_status = {}
-        try:
-            with rasterio.open(path) as src:
-                nodata = src.nodata
-                for c in catchments:
-                    cid = c['id']
-                    try:
-                        inside_count, valid_count, valid = mask_polygon(
-                            src, c['geom_4326_mapping'], nodata)
-                    except (ValueError, rasterio.errors.RasterioError):
-                        # Polygon falls outside raster bounds, etc.
-                        per_inside[cid].append(0)
-                        per_valid[cid].append(0)
-                        per_catch_status[cid] = 'missing'
-                        continue
-                    except Exception as exc:
-                        print(f'[stormgrid]   {cid} mask error: {exc}', file=sys.stderr)
-                        per_inside[cid].append(0)
-                        per_valid[cid].append(0)
-                        per_catch_status[cid] = 'missing'
-                        continue
-
-                    per_inside[cid].append(inside_count)
-                    per_valid[cid].append(valid_count)
-                    if valid_count > 0:
-                        per_pool[cid].append(valid)
-                        per_means[cid].append(float(np.mean(valid)))
-                        frame_cov = valid_count / inside_count if inside_count > 0 else 0.0
-                        per_catch_status[cid] = 'valid' if frame_cov >= LOW_COVERAGE_THRESH else 'partial'
-                    else:
-                        per_catch_status[cid] = 'missing'
-
-        except Exception as exc:
-            print(f'[stormgrid]   error reading {os.path.basename(path)}: {exc}', file=sys.stderr)
-            frames_skipped += 1
-            # also append zeros so per-catchment arrays stay aligned with frame count
-            for cid in cids:
-                if len(per_inside[cid]) < (frames_used + frames_skipped):
-                    per_inside[cid].append(0)
-                    per_valid[cid].append(0)
-                per_catch_status[cid] = 'missing'
-            frame_records.append({
-                'timestamp': ts.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                'status': 'missing',
-                'catchments_with_valid_data': 0,
-                'catchments_missing_data': len(cids),
-                'notes': f'frame read error: {type(exc).__name__}',
-            })
-            continue
-
-        cnt_valid_or_partial = sum(1 for s in per_catch_status.values() if s in ('valid', 'partial'))
-        cnt_partial = sum(1 for s in per_catch_status.values() if s == 'partial')
-        cnt_missing = sum(1 for s in per_catch_status.values() if s == 'missing')
-        if cnt_valid_or_partial == 0:
-            frame_status = 'missing'
-        elif cnt_missing == 0:
-            frame_status = 'valid'
-        else:
-            frame_status = 'partial'
-        notes = []
-        if cnt_partial:
-            notes.append(f'{cnt_partial} partial')
-        if cnt_missing:
-            notes.append(f'{cnt_missing} missing')
-        frame_records.append({
-            'timestamp': ts.strftime('%Y-%m-%dT%H:%M:%SZ'),
-            'status': frame_status,
-            'catchments_with_valid_data': cnt_valid_or_partial,
-            'catchments_missing_data': cnt_missing,
-            'notes': '; '.join(notes),
-        })
-        frames_used += 1
-
-    # ── Aggregate per catchment ───────────────────────────────────────────
-    out_catchments = {}
-    frame_count_total = len(frame_records)   # frames considered (incl. errors)
-
-    for cid in cids:
-        inside_seq = per_inside[cid]
-        valid_seq  = per_valid[cid]
-        means      = per_means[cid]
-        pool_chunks = per_pool[cid]
-
-        if sum(inside_seq) == 0:
-            # No overlap with raster across the whole window — skip entirely.
-            continue
-
-        pool = np.concatenate(pool_chunks) if pool_chunks else np.array([])
-        if pool.size == 0:
-            # We tried, but nothing valid in any frame. Keep the row with
-            # explicit zero-coverage so the UI can flag it instead of hiding.
-            out_catchments[cid] = {
-                'total_mm':          None,
-                'mean_mm':           None,
-                'min_mm':            None,
-                'max_mm':            None,
-                'sample_count':      0,
-                'coverage_fraction': 0.0,
-                'coverage_pct':      0.0,
-                'frames_used':       0,
-                'frames_missing':    int(sum(1 for v in valid_seq if v == 0)),
-                'frames_partial':    0,
-                'frame_count':       frame_count_total,
-                'confidence':        'low',
-            }
-            continue
-
-        total_inside = int(sum(inside_seq))
-        total_valid  = int(sum(valid_seq))
-        coverage_fraction = total_valid / total_inside if total_inside > 0 else None
-
-        frames_used_n    = int(sum(1 for v in valid_seq if v > 0))
-        frames_missing_n = int(sum(1 for v in valid_seq if v == 0))
-        # per-frame coverage for partial-count
-        frames_partial_n = 0
-        for ic, vc in zip(inside_seq, valid_seq):
-            if ic <= 0 or vc <= 0:
-                continue
-            cov = vc / ic
-            if 0.0 < cov < LOW_COVERAGE_THRESH:
-                frames_partial_n += 1
-
-        out_catchments[cid] = {
-            'total_mm':          round(float(sum(means)), 4) if means else 0.0,
-            'mean_mm':           round(float(sum(means) / len(means)), 4) if means else 0.0,
-            'min_mm':            round(float(np.min(pool)), 4),
-            'max_mm':            round(float(np.max(pool)), 4),
-            'sample_count':      int(pool.size),
-            'coverage_fraction': round(float(coverage_fraction), 4) if coverage_fraction is not None else None,
-            'coverage_pct':      round(float(coverage_fraction * 100), 1) if coverage_fraction is not None else None,
-            'frames_used':       frames_used_n,
-            'frames_missing':    frames_missing_n,
-            'frames_partial':    frames_partial_n,
-            'frame_count':       frame_count_total,
-            'confidence':        confidence_for(coverage_fraction, frames_missing_n),
-        }
-
-    # ── Top-level payload ─────────────────────────────────────────────────
-    payload = {
-        'schema_version': SCHEMA_VERSION,
-        'generated_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
-        'source': SOURCE_NAME,
-        'window': {
-            'start': start_dt.strftime('%Y-%m-%dT%H:%M:%SZ'),
-            'end':   end_dt.strftime('%Y-%m-%dT%H:%M:%SZ'),
-            'frame_count': frames_used,
-        },
-        'quality': {
-            'coverage_rule': 'valid pixel-frame samples / candidate pixel-frame samples',
-            'low_coverage_threshold':  LOW_COVERAGE_THRESH,
-            'high_confidence_threshold': HIGH_CONFIDENCE_THRESH,
-            'notes': [
-                'Catchments below 70% coverage are flagged and should not be silently averaged.',
-                'Rainfall is uncalibrated Lizard precipitation archive output.',
-            ],
-        },
-        'frame_log': frame_records,
-        'catchments': out_catchments,
-    }
-
-    raw = json.dumps(payload, separators=(',', ':')).encode('utf-8')
-    size_kb = len(raw) / 1024
-    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUT_PATH.write_bytes(raw)
-
-    print('[stormgrid] ----- summary -----', file=sys.stderr)
-    print(f'[stormgrid] frames used:    {frames_used}', file=sys.stderr)
-    print(f'[stormgrid] frames skipped: {frames_skipped}', file=sys.stderr)
-    print(f'[stormgrid] catchments in:  {len(catchments)}', file=sys.stderr)
-    print(f'[stormgrid] catchments out: {len(out_catchments)}', file=sys.stderr)
-    print(f'[stormgrid] payload:        {size_kb:.2f} KB', file=sys.stderr)
-    print(f'[stormgrid] schema:         {SCHEMA_VERSION}', file=sys.stderr)
-    print(f'[stormgrid] wrote {OUT_PATH.relative_to(REPO)}', file=sys.stderr)
+    name = args.window_name or 'latest'
+    out_path, size = write_payload(payload, f'catchment_rainfall_{name}.json')
+    print(f'[stormgrid] payload: {size/1024:.2f} KB', file=sys.stderr)
+    print(f'[stormgrid] schema:  {SCHEMA_VERSION}', file=sys.stderr)
+    print(f'[stormgrid] wrote {out_path.relative_to(REPO)}', file=sys.stderr)
 
 
 if __name__ == '__main__':
