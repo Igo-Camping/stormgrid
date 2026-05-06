@@ -13,6 +13,7 @@ export function buildEventFootprint({
   rankingFilters,
   rankingSort,
   selectedCatchmentId,
+  ifdResult,
 }) {
   const ok   = !!(rainfallResult && rainfallResult.ok && rainfallResult.data);
   const data = ok ? rainfallResult.data : null;
@@ -43,6 +44,36 @@ export function buildEventFootprint({
     spatial_concentration_class: r.spatial_class,
   }));
 
+  // Optional point-IFD context block. Always carries a methodology
+  // safeguard so downstream consumers cannot mistake it for an AEP
+  // classification or an ARF-adjusted areal design rainfall.
+  let pointIfd = null;
+  if (ifdResult && ifdResult.ok && ifdResult.data) {
+    const ifdData = ifdResult.data;
+    const sel = selectedCatchmentId ? ifdData.catchments[selectedCatchmentId] : null;
+    pointIfd = {
+      point_ifd_only: true,
+      arf_applied:    false,
+      warning: (ifdData.methodology && ifdData.methodology.warning) ||
+        'Point IFD only. ARF not applied. Not a catchment AEP classification.',
+      reference_point_rule: ifdData.methodology && ifdData.methodology.reference_point_rule,
+      source: ifdData.source || null,
+      schema_version: ifdData.schema_version,
+      data_generated: ifdData.generated_at,
+      durations:      ifdData.durations || null,
+      aep_keys:       ifdData.aep_keys  || null,
+      selected_catchment: sel ? {
+        catchment_id:                  selectedCatchmentId,
+        catchment_centroid:            sel.catchment_centroid,
+        reference_station_id:          sel.reference_station_id,
+        reference_station_name:        sel.reference_station_name,
+        reference_station_lonlat:      sel.reference_station_lonlat,
+        reference_station_distance_km: sel.reference_station_distance_km,
+        durations:                     sel.durations,
+      } : null,
+    };
+  }
+
   return {
     schema_version:        FOOTPRINT_SCHEMA,
     generated_at:          new Date().toISOString(),
@@ -59,6 +90,7 @@ export function buildEventFootprint({
       window:         data.window,
       quality:        data.quality || null,
     } : null,
+    point_ifd:       pointIfd,
     catchment_count: catchments.length,
     catchments,
   };

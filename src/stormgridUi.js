@@ -34,6 +34,8 @@ import { buildEventFootprint } from './stormgridSnapshot.js';
 import {
   renderEventSummaryPanel, exportCsv, exportJson, exportGeoJSON, exportPngSnapshot,
 } from './stormgridExports.js';
+import { loadCatchmentIfd, getCatchmentIfd } from './stormgridIfdLoader.js';
+import { renderIfdComparisonPanel } from './stormgridIfdPanel.js';
 
 const NS = 'stormgrid';
 // Selector lists the three precomputed windows; "latest" is exposed as
@@ -55,6 +57,7 @@ export function mountStormgridShell(host, options = {}) {
 
   const state = createStormgridState();
   let rainfallResult = null;
+  let ifdResult = null;
   let mapHandle = null;
   // Ranking-panel local state — kept here rather than in stormgridState
   // because it's a presentation concern, not a workflow primitive.
@@ -115,6 +118,10 @@ export function mountStormgridShell(host, options = {}) {
   runBar.appendChild(runBtn);
   runBar.appendChild(runReason);
   host.appendChild(runBar);
+
+  const ifdHost = document.createElement('section');
+  ifdHost.className = `${NS}-ifdwrap-outer`;
+  host.appendChild(ifdHost);
 
   const eventHost = document.createElement('section');
   eventHost.className = `${NS}-eventwrap`;
@@ -190,10 +197,26 @@ export function mountStormgridShell(host, options = {}) {
       durationStats,
       spatialMetrics: durationStats && durationStats.spatial_metrics ? durationStats.spatial_metrics : null,
     });
+    // IFD comparison panel (always rendered with warning, even pre-data).
+    const durationStatsByKey = {};
+    if (data && state.selectedCatchmentId) {
+      const cRow = data.catchments[state.selectedCatchmentId];
+      if (cRow && cRow.duration_stats) {
+        Object.assign(durationStatsByKey, cRow.duration_stats);
+      }
+    }
+    renderIfdComparisonPanel(ifdHost, {
+      ifdResult,
+      catchmentId: state.selectedCatchmentId,
+      catchmentRow,
+      durationStatsByKey,
+    });
+
     renderEventSummaryPanel(eventHost, {
       footprint: buildEventFootprint({
         state, rainfallResult, rankingFilters, rankingSort,
         selectedCatchmentId: state.selectedCatchmentId,
+        ifdResult,
       }),
       onExport: onExportClick,
       lastExportNote,
@@ -244,6 +267,7 @@ export function mountStormgridShell(host, options = {}) {
     const fp = buildEventFootprint({
       state, rainfallResult, rankingFilters, rankingSort,
       selectedCatchmentId: state.selectedCatchmentId,
+      ifdResult,
     });
     if (!fp || !fp.catchments || fp.catchments.length === 0) {
       lastExportNote = 'Nothing to export — no catchments in this view.';
@@ -350,6 +374,11 @@ export function mountStormgridShell(host, options = {}) {
     if (res.ok) setRainfallData(state, res.data, null);
     else        setRainfallData(state, null, res.error);
     if (mapHandle && res.ok) applyConfidenceStyling(mapHandle, res.data);
+    render();
+  });
+
+  loadCatchmentIfd().then((res) => {
+    ifdResult = res;
     render();
   });
 
