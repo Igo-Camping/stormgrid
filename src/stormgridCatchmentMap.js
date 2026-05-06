@@ -183,6 +183,16 @@ export function applyConfidenceStyling(handle, rainfallData, opts = {}) {
         lines.push(`Critical ${escapeHtml(selectedDuration)}: ${fmt(dstat.max_total_mm)}`);
         lines.push(`@ ${escapeHtml(String(dstat.window_start).slice(0, 16).replace('T', ' '))} UTC`);
         lines.push(`Cov: ${dcov} · ${escapeHtml(dconf.toUpperCase())}`);
+        const sm = dstat.spatial_metrics;
+        if (sm) {
+          const cv  = (typeof sm.coefficient_of_variation === 'number')
+            ? sm.coefficient_of_variation.toFixed(2) : '—';
+          const wc  = (typeof sm.wet_core_ratio === 'number')
+            ? sm.wet_core_ratio.toFixed(2) : '—';
+          const cls = sm.spatial_concentration_class || '—';
+          lines.push(`Spatial: CV ${cv} · Wet-core ${wc}`);
+          lines.push(`<em>${escapeHtml(cls)}</em>`);
+        }
       } else if (selectedDuration) {
         lines.push(`Critical ${escapeHtml(selectedDuration)}: —`);
       }

@@ -146,6 +146,14 @@ export function getCatchmentDurationStats(data, catchmentId, durationKey) {
   return row.duration_stats[durationKey] || null;
 }
 
+/* Phase 4 — spatial helpers. Tolerant of legacy JSON. */
+
+export function getCatchmentSpatialMetrics(data, catchmentId, durationKey) {
+  const ds = getCatchmentDurationStats(data, catchmentId, durationKey);
+  if (!ds || !ds.spatial_metrics) return null;
+  return ds.spatial_metrics;
+}
+
 export function pickDefaultDurationKey(durations) {
   if (!Array.isArray(durations) || durations.length === 0) return null;
   const has24 = durations.find((d) => d.key === '24h');

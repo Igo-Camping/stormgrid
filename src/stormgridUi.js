@@ -163,6 +163,7 @@ export function mountStormgridShell(host, options = {}) {
       lastRunAt: state.lastRunAt,
       selectedDurationKey: state.selectedDuration,
       durationStats,
+      spatialMetrics: durationStats && durationStats.spatial_metrics ? durationStats.spatial_metrics : null,
     });
     renderFrameLogPanel(frameLogHost, {
       data: rainfallResult && rainfallResult.ok ? rainfallResult.data : null,

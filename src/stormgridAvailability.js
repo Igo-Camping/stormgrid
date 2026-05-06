@@ -73,8 +73,58 @@ export function renderAvailabilityPanel(host, {
   } else {
     sel.appendChild(renderResults(selected, catchmentRow, lastRunAt));
     sel.appendChild(renderDurationResult(selectedDurationKey, durationStats));
+    sel.appendChild(renderSpatialMetrics(selectedDurationKey, durationStats));
   }
   host.appendChild(sel);
+}
+
+const SPATIAL_CLASS_BLURB = {
+  'Uniform':              'Rainfall was relatively evenly distributed across the catchment.',
+  'Moderately variable':  'Rainfall varied noticeably across the catchment without a single dominant core.',
+  'Concentrated':         'Rainfall was concentrated into localised areas within the catchment.',
+  'Highly concentrated':  'Rainfall was strongly concentrated into a compact rainfall core.',
+  'unknown':              'Spatial structure could not be characterised for this sub-window.',
+};
+const SPATIAL_CLASS_KEYS = {
+  'Uniform': 'uniform',
+  'Moderately variable': 'moderate',
+  'Concentrated': 'concentrated',
+  'Highly concentrated': 'highly-concentrated',
+  'unknown': 'unknown',
+};
+
+function renderSpatialMetrics(durationKey, durationStats) {
+  const wrap = document.createElement('section');
+  wrap.className = 'stormgrid-spatial';
+  if (!durationStats) {
+    wrap.innerHTML = `<h5>Spatial rainfall structure</h5>
+      <p class="stormgrid-spatial__empty">Pick a critical duration to see spatial metrics.</p>`;
+    return wrap;
+  }
+  const sm = durationStats.spatial_metrics;
+  if (!sm) {
+    wrap.innerHTML = `<h5>Spatial rainfall structure <span class="stormgrid-spatial__sub">${escapeHtml(durationKey || '—')}</span></h5>
+      <p class="stormgrid-spatial__empty">Spatial metrics not available in this dataset (legacy schema).</p>`;
+    return wrap;
+  }
+  const cls   = sm.spatial_concentration_class || 'unknown';
+  const blurb = SPATIAL_CLASS_BLURB[cls] || SPATIAL_CLASS_BLURB.unknown;
+  const cn    = SPATIAL_CLASS_KEYS[cls] || 'unknown';
+  const fmt = (n) => (n === null || n === undefined) ? '—' : Number(n).toFixed(3);
+  wrap.innerHTML = `
+    <h5>Spatial rainfall structure <span class="stormgrid-spatial__sub">${escapeHtml(durationKey || '—')}</span></h5>
+    <dl class="stormgrid-spatial__grid">
+      <div><dt>Concentration class</dt>
+           <dd><span class="stormgrid-spatial__chip stormgrid-spatial__chip--${escapeAttr(cn)}">${escapeHtml(cls)}</span></dd></div>
+      <div><dt>Coefficient of variation</dt><dd>${fmt(sm.coefficient_of_variation)}</dd></div>
+      <div><dt>Uniformity index</dt>        <dd>${fmt(sm.uniformity_index)}</dd></div>
+      <div><dt>Wet-core ratio</dt>          <dd>${fmt(sm.wet_core_ratio)}</dd></div>
+      <div><dt>Pixels used</dt>             <dd>${typeof sm.pixel_count === 'number' ? sm.pixel_count.toLocaleString() : '—'}</dd></div>
+    </dl>
+    <p class="stormgrid-spatial__blurb">${escapeHtml(blurb)}</p>
+    <p class="stormgrid-spatial__note">Stormgrid-derived indicators based on real pixel rainfall in the critical sub-window. Not engineering design quantities.</p>
+  `;
+  return wrap;
 }
 
 function renderDurationResult(durationKey, durationStats) {

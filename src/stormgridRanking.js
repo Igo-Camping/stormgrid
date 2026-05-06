@@ -25,6 +25,7 @@ export function buildCatchmentRanking(data, durationKey, { filters = {}, sort = 
     if (cf === 'high' && conf !== 'high') continue;
     if (cf === 'high-or-medium' && !(conf === 'high' || conf === 'medium')) continue;
     if (cf === 'low' && conf !== 'low') continue;
+    const sm = ds.spatial_metrics || null;
     rows.push({
       id,
       max_total_mm:  ds.max_total_mm,
@@ -34,6 +35,9 @@ export function buildCatchmentRanking(data, durationKey, { filters = {}, sort = 
       window_end:    ds.window_end,
       frames_used:   ds.frames_used,
       frames_missing: ds.frames_missing,
+      cv:            sm && typeof sm.coefficient_of_variation === 'number' ? sm.coefficient_of_variation : null,
+      wet_core:      sm && typeof sm.wet_core_ratio === 'number' ? sm.wet_core_ratio : null,
+      spatial_class: sm && sm.spatial_concentration_class ? sm.spatial_concentration_class : null,
     });
   }
 
@@ -41,13 +45,17 @@ export function buildCatchmentRanking(data, durationKey, { filters = {}, sort = 
   const ord = sort.order || SORT_ORDER_DEFAULT;
   const dir = ord === 'asc' ? 1 : -1;
   const confRank = { high: 3, medium: 2, low: 1, unknown: 0 };
+  const classRank = { 'Uniform': 1, 'Moderately variable': 2, 'Concentrated': 3, 'Highly concentrated': 4, 'unknown': 0 };
   rows.sort((a, b) => {
     let av, bv;
-    if      (key === 'max')  { av = a.max_total_mm;  bv = b.max_total_mm; }
-    else if (key === 'cov')  { av = a.coverage_pct ?? -1; bv = b.coverage_pct ?? -1; }
-    else if (key === 'conf') { av = confRank[a.confidence] ?? 0; bv = confRank[b.confidence] ?? 0; }
-    else if (key === 'id')   { return dir * String(a.id).localeCompare(String(b.id), undefined, { numeric: true }); }
-    else                     { av = a.max_total_mm; bv = b.max_total_mm; }
+    if      (key === 'max')      { av = a.max_total_mm;  bv = b.max_total_mm; }
+    else if (key === 'cov')      { av = a.coverage_pct ?? -1; bv = b.coverage_pct ?? -1; }
+    else if (key === 'conf')     { av = confRank[a.confidence] ?? 0; bv = confRank[b.confidence] ?? 0; }
+    else if (key === 'cv')       { av = a.cv ?? -1; bv = b.cv ?? -1; }
+    else if (key === 'wet_core') { av = a.wet_core ?? -1; bv = b.wet_core ?? -1; }
+    else if (key === 'class')    { av = classRank[a.spatial_class] ?? 0; bv = classRank[b.spatial_class] ?? 0; }
+    else if (key === 'id')       { return dir * String(a.id).localeCompare(String(b.id), undefined, { numeric: true }); }
+    else                         { av = a.max_total_mm; bv = b.max_total_mm; }
     return dir * (av - bv);
   });
   return rows;
@@ -151,6 +159,9 @@ export function renderRankingPanel(host, {
       <th class="stormgrid-ranking__sortable stormgrid-ranking__num" data-sort="max">Max accumulated${arrow('max')}</th>
       <th class="stormgrid-ranking__sortable stormgrid-ranking__num" data-sort="cov">Coverage${arrow('cov')}</th>
       <th class="stormgrid-ranking__sortable" data-sort="conf">Confidence${arrow('conf')}</th>
+      <th class="stormgrid-ranking__sortable stormgrid-ranking__num" data-sort="cv">CV${arrow('cv')}</th>
+      <th class="stormgrid-ranking__sortable stormgrid-ranking__num" data-sort="wet_core">Wet-core${arrow('wet_core')}</th>
+      <th class="stormgrid-ranking__sortable" data-sort="class">Class${arrow('class')}</th>
       <th>Critical window (UTC)</th>
     </tr></thead>
     <tbody></tbody>
@@ -158,6 +169,12 @@ export function renderRankingPanel(host, {
   table.querySelectorAll('th[data-sort]').forEach((th) => {
     th.addEventListener('click', onClickHeader(th.dataset.sort));
   });
+
+  const classKey = (cls) => {
+    const m = { 'Uniform': 'uniform', 'Moderately variable': 'moderate',
+                'Concentrated': 'concentrated', 'Highly concentrated': 'highly-concentrated' };
+    return m[cls] || 'unknown';
+  };
 
   const tbody = table.querySelector('tbody');
   rows.forEach((r, i) => {
@@ -169,12 +186,18 @@ export function renderRankingPanel(host, {
       + (isSelected ? ' stormgrid-ranking__row--selected' : '');
     tr.dataset.catchmentId = r.id;
     const cov = r.coverage_pct != null ? `${r.coverage_pct.toFixed(1)}%` : '—';
+    const cvStr = r.cv != null ? r.cv.toFixed(2) : '—';
+    const wcStr = r.wet_core != null ? r.wet_core.toFixed(2) : '—';
+    const cls = r.spatial_class || '—';
     tr.innerHTML = `
       <td class="stormgrid-ranking__rank">${i + 1}</td>
       <td>${escapeHtml(r.id)}</td>
       <td class="stormgrid-ranking__num"><strong>${r.max_total_mm.toFixed(2)}</strong> mm</td>
       <td class="stormgrid-ranking__num">${escapeHtml(cov)}</td>
       <td><span class="stormgrid-conf stormgrid-conf--${escapeAttr(r.confidence)}">${escapeHtml(r.confidence.toUpperCase())}</span></td>
+      <td class="stormgrid-ranking__num">${escapeHtml(cvStr)}</td>
+      <td class="stormgrid-ranking__num">${escapeHtml(wcStr)}</td>
+      <td><span class="stormgrid-spatial__chip stormgrid-spatial__chip--${escapeAttr(classKey(cls))}">${escapeHtml(cls)}</span></td>
       <td class="stormgrid-ranking__win">${escapeHtml(formatTs(r.window_start))} → ${escapeHtml(formatTs(r.window_end))}</td>
     `;
     tr.addEventListener('click', () => {

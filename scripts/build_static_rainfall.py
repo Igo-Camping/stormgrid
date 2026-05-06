@@ -156,36 +156,126 @@ def collect_frames_window(archive_root, end_dt, hours):
 # ──────────────────────────────────────────────────────────────────────────
 
 def mask_polygon_to_intermediate(src, geom_4326_mapping, nodata):
-    """Return per-(frame, catchment) compact stats: a small dict, never the
-    pixel array. None on hard error; zero-row on no overlap."""
+    """Return per-(frame, catchment) compact stats. Includes the 1-D
+    ndarray of inside-pixel values (NaN at nodata positions) so spatial
+    metrics can be computed later for the chosen critical sub-window
+    without re-reading the raster.
+
+    None inside_values when the polygon doesn't overlap the raster."""
     try:
         masked, _ = rio_mask(src, [geom_4326_mapping], crop=True, nodata=nodata, filled=False)
     except (ValueError, rasterio.errors.RasterioError):
-        return {'inside': 0, 'valid': 0, 'mean': None, 'min': None, 'max': None}
+        return {'inside': 0, 'valid': 0, 'mean': None, 'min': None, 'max': None,
+                'inside_values': None}
     arr = masked[0]
     if hasattr(arr, 'mask') and arr.mask is not np.ma.nomask:
         inside_mask = ~arr.mask
         inside_count = int(np.count_nonzero(inside_mask))
         if inside_count == 0:
-            return {'inside': 0, 'valid': 0, 'mean': None, 'min': None, 'max': None}
-        inside_values = np.asarray(arr.data)[inside_mask]
+            return {'inside': 0, 'valid': 0, 'mean': None, 'min': None, 'max': None,
+                    'inside_values': None}
+        raw = np.asarray(arr.data)[inside_mask].astype(np.float32)
     else:
         inside_count = int(arr.size)
-        inside_values = np.asarray(arr).flatten()
+        raw = np.asarray(arr).flatten().astype(np.float32)
 
-    valid = inside_values[np.isfinite(inside_values)]
+    valid_pos = np.isfinite(raw)
     if nodata is not None:
-        valid = valid[valid != nodata]
-    valid = valid[valid > -1000.0]
+        valid_pos &= (raw != float(nodata))
+    valid_pos &= (raw > -1000.0)
+
+    inside_values = np.where(valid_pos, raw, np.nan).astype(np.float32)
+    valid = raw[valid_pos]
 
     if valid.size == 0:
-        return {'inside': inside_count, 'valid': 0, 'mean': None, 'min': None, 'max': None}
+        return {'inside': inside_count, 'valid': 0, 'mean': None, 'min': None, 'max': None,
+                'inside_values': inside_values}
     return {
         'inside': inside_count,
         'valid':  int(valid.size),
         'mean':   float(np.mean(valid)),
         'min':    float(np.min(valid)),
         'max':    float(np.max(valid)),
+        'inside_values': inside_values,
+    }
+
+
+# Spatial-metric thresholds — see methodology note in payload.quality.notes.
+SPATIAL_CV_UNIFORM_BELOW   = 0.25
+SPATIAL_CV_MODERATE_BELOW  = 0.50
+SPATIAL_CV_CONCENTRATED_BELOW = 1.00
+SPATIAL_MIN_PIXELS         = 5
+
+
+def compute_spatial_metrics(rows_at_critical):
+    """Compute Stormgrid spatial structure metrics from per-frame inside-pixel
+    arrays at the critical sub-window. Operates on real pixel rainfall — NOT
+    derived from catchment means. Returns None if pixel info is unavailable."""
+    if not rows_at_critical:
+        return None
+    inside_arrays = [r.get('inside_values') for r in rows_at_critical]
+    if any(iv is None for iv in inside_arrays):
+        return None
+    try:
+        stacked = np.stack(inside_arrays, axis=0)  # shape (N, inside_count)
+    except ValueError:
+        return None
+
+    # Per-pixel total over the critical sub-window. We restrict to pixels
+    # that are valid in ALL N frames so totals are directly comparable.
+    valid_in_all = np.all(~np.isnan(stacked), axis=0)
+    if not np.any(valid_in_all):
+        return {
+            'pixel_count': 0,
+            'coefficient_of_variation': None,
+            'uniformity_index': None,
+            'wet_core_ratio': None,
+            'spatial_concentration_class': 'unknown',
+        }
+    per_pixel = np.nansum(stacked[:, valid_in_all], axis=0)
+    pixel_count = int(per_pixel.size)
+    if pixel_count < SPATIAL_MIN_PIXELS:
+        return {
+            'pixel_count': pixel_count,
+            'coefficient_of_variation': None,
+            'uniformity_index': None,
+            'wet_core_ratio': None,
+            'spatial_concentration_class': 'unknown',
+        }
+
+    mean_total = float(np.mean(per_pixel))
+    if mean_total <= 0:
+        # No rainfall in any of the all-valid pixels — degenerate but legal.
+        return {
+            'pixel_count': pixel_count,
+            'coefficient_of_variation': 0.0,
+            'uniformity_index': 1.0,
+            'wet_core_ratio': 1.0,
+            'spatial_concentration_class': 'Uniform',
+        }
+    std_total = float(np.std(per_pixel))
+    cv = std_total / mean_total
+    uniformity = 1.0 - min(cv / 2.0, 1.0)
+
+    n_top = max(1, int(round(pixel_count * 0.10)))
+    top_pixels = np.sort(per_pixel)[-n_top:]
+    wet_core = float(np.mean(top_pixels) / mean_total)
+
+    if cv < SPATIAL_CV_UNIFORM_BELOW:
+        cls = 'Uniform'
+    elif cv < SPATIAL_CV_MODERATE_BELOW:
+        cls = 'Moderately variable'
+    elif cv < SPATIAL_CV_CONCENTRATED_BELOW:
+        cls = 'Concentrated'
+    else:
+        cls = 'Highly concentrated'
+
+    return {
+        'pixel_count': pixel_count,
+        'coefficient_of_variation': round(cv, 4),
+        'uniformity_index':         round(uniformity, 4),
+        'wet_core_ratio':           round(wet_core, 4),
+        'spatial_concentration_class': cls,
     }
 
 
@@ -260,7 +350,8 @@ def compute_duration_stats(ts_in_window, intermediates, cid, duration_hours):
     rows = []
     for ts in ts_in_window:
         row = (intermediates.get(ts) or {}).get(cid)
-        rows.append(row or {'inside': 0, 'valid': 0, 'mean': None, 'min': None, 'max': None})
+        rows.append(row or {'inside': 0, 'valid': 0, 'mean': None, 'min': None, 'max': None,
+                            'inside_values': None})
 
     # If no candidate sub-window contains a single inside-pixel, the
     # catchment doesn't overlap the raster anywhere within this window;
@@ -298,7 +389,9 @@ def compute_duration_stats(ts_in_window, intermediates, cid, duration_hours):
     win_start_ts = ts_in_window[best_i]
     win_end_ts   = win_start_ts + timedelta(hours=duration_hours)
 
-    return {
+    spatial = compute_spatial_metrics(sub)
+
+    out = {
         'max_total_mm':  round(float(best_sum), 4),
         'window_start':  win_start_ts.strftime('%Y-%m-%dT%H:%M:%SZ'),
         'window_end':    win_end_ts.strftime('%Y-%m-%dT%H:%M:%SZ'),
@@ -310,6 +403,9 @@ def compute_duration_stats(ts_in_window, intermediates, cid, duration_hours):
         'frames_missing': int(frames_missing),
         'confidence':    confidence_for(coverage_fraction, frames_missing),
     }
+    if spatial is not None:
+        out['spatial_metrics'] = spatial
+    return out
 
 
 def aggregate_window(catchments, intermediates, ts_in_window):
@@ -469,6 +565,7 @@ def make_payload(out_catchments, frame_records, start_dt, end_dt, frames_used, d
                 'Catchments below 70% coverage are flagged and should not be silently averaged.',
                 'Rainfall is uncalibrated Lizard precipitation archive output.',
                 'Duration max_total_mm is the rolling N-frame maximum within the parent window. Not an AEP, not a design rainfall, no IFD or ARF comparison performed.',
+                'Spatial metrics describe rainfall structure inside the critical sub-window. Coefficient of variation, uniformity index, and wet-core ratio are Stormgrid-derived indicators, not engineering design quantities.',
             ],
         },
         'durations': durations_meta,

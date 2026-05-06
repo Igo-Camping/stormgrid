@@ -984,3 +984,78 @@ html, body {
   color: var(--sg-muted);
   font-style: italic;
 }
+
+/* ── Spatial rainfall structure panel ───────────────────────────────── */
+
+.stormgrid-spatial {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--sg-line);
+}
+.stormgrid-spatial h5 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sg-muted);
+}
+.stormgrid-spatial__sub {
+  margin-left: 6px;
+  color: var(--sg-fg);
+  font-weight: 700;
+}
+.stormgrid-spatial__empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--sg-muted);
+}
+.stormgrid-spatial__grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px 14px;
+}
+.stormgrid-spatial__grid div { display: contents; }
+.stormgrid-spatial__grid dt {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  color: var(--sg-muted);
+}
+.stormgrid-spatial__grid dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--sg-fg);
+}
+.stormgrid-spatial__chip {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.stormgrid-spatial__chip--uniform              { background: #e3f6e8; color: #166534; border-color: #b6e1be; }
+.stormgrid-spatial__chip--moderate             { background: #fff4d6; color: #7a4c00; border-color: #f1d893; }
+.stormgrid-spatial__chip--concentrated         { background: #fde6dc; color: #7a3318; border-color: #f1bda1; }
+.stormgrid-spatial__chip--highly-concentrated  { background: #fde3e3; color: #8a1f1f; border-color: #f1b8b8; }
+.stormgrid-spatial__chip--unknown              { background: var(--sg-default-bg); color: var(--sg-muted); }
+
+.stormgrid-spatial__blurb {
+  margin: 8px 0 4px;
+  font-size: 12px;
+  color: var(--sg-fg);
+  line-height: 1.4;
+}
+.stormgrid-spatial__note {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--sg-muted);
+  font-style: italic;
+}
