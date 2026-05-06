@@ -1,7 +1,7 @@
-/* Stormgrid v0 — UI shell.
-   Mounts: header, catchment map, availability/results panel, card grid,
-   run bar. Loads the static rainfall JSON in parallel with the catchment
-   map. No imports from Stormgauge map/radar/station modules. */
+/* Stormgrid — UI shell.
+   Top-of-page strip: prominent Last built timestamp.
+   Top section: catchment map (left), availability + selected results (right).
+   Below: card grid + run bar + frame log panel. */
 
 import {
   createStormgridState, markManuallyChanged, STATUS,
@@ -12,9 +12,9 @@ import { buildDefaults }            from './stormgridDefaults.js';
 import { buildReviewModel }         from './stormgridReviewModel.js';
 import { validateRunReadiness }     from './stormgridValidation.js';
 import { registerStormgridMap, getMapContext } from './stormgridMapBridge.js';
-import { mountCatchmentMap }        from './stormgridCatchmentMap.js';
-import { loadStormgridData, getCatchmentRow } from './stormgridDataLoader.js';
-import { renderAvailabilityPanel }  from './stormgridAvailability.js';
+import { mountCatchmentMap, applyConfidenceStyling } from './stormgridCatchmentMap.js';
+import { loadStormgridData, getCatchmentRow }      from './stormgridDataLoader.js';
+import { renderAvailabilityPanel, renderFrameLogPanel, renderLastBuiltStrip } from './stormgridAvailability.js';
 
 const NS = 'stormgrid';
 
@@ -22,31 +22,32 @@ export function mountStormgridShell(host, options = {}) {
   if (!host || !(host instanceof HTMLElement)) {
     throw new Error('Stormgrid: mount host element is required.');
   }
-  if (options && options.map) {
-    registerStormgridMap(options.map);
-  }
+  if (options && options.map) registerStormgridMap(options.map);
 
   const state = createStormgridState();
   let rainfallResult = null;
+  let mapHandle = null;
 
   host.classList.add(`${NS}-root`);
   host.innerHTML = '';
 
   // ── Layout ────────────────────────────────────────────────────────────
+  const lastBuiltStrip = document.createElement('div');
+  lastBuiltStrip.className = `${NS}-lastbuilt`;
+  host.appendChild(lastBuiltStrip);
+
   const header = document.createElement('header');
   header.className = `${NS}-header`;
   header.innerHTML = `
     <h2 class="${NS}-title">Stormgrid <span class="${NS}-version">v0 shell</span></h2>
-    <p class="${NS}-sub">Click a catchment, then click Run analysis. Stats come from the precomputed Lizard rainfall JSON (uncalibrated, non-engineering).</p>
+    <p class="${NS}-sub">Click a catchment, then click Run analysis. Stats come from the precomputed Lizard rainfall JSON (uncalibrated, non-engineering). Polygons are coloured by data-coverage confidence.</p>
   `;
   host.appendChild(header);
 
   const top = document.createElement('section');
   top.className = `${NS}-top`;
-  const mapHost = document.createElement('div');
-  mapHost.className = `${NS}-mapcol`;
-  const availHost = document.createElement('aside');
-  availHost.className = `${NS}-availcol`;
+  const mapHost   = document.createElement('div'); mapHost.className   = `${NS}-mapcol`;
+  const availHost = document.createElement('aside'); availHost.className = `${NS}-availcol`;
   top.appendChild(mapHost);
   top.appendChild(availHost);
   host.appendChild(top);
@@ -68,6 +69,10 @@ export function mountStormgridShell(host, options = {}) {
   runBar.appendChild(runBtn);
   runBar.appendChild(runReason);
   host.appendChild(runBar);
+
+  const frameLogHost = document.createElement('section');
+  frameLogHost.className = `${NS}-framelogwrap`;
+  host.appendChild(frameLogHost);
 
   runBtn.addEventListener('click', () => {
     const readiness = validateRunReadiness(state);
@@ -92,12 +97,16 @@ export function mountStormgridShell(host, options = {}) {
     grid.innerHTML = '';
     cards.forEach((card) => grid.appendChild(renderCard(card, onEdit)));
 
+    renderLastBuiltStrip(lastBuiltStrip, { rainfallResult });
     renderAvailabilityPanel(availHost, {
       rainfallResult,
       selected,
       catchmentRow,
       analysisRun: !!state.analysisRun,
       lastRunAt: state.lastRunAt,
+    });
+    renderFrameLogPanel(frameLogHost, {
+      data: rainfallResult && rainfallResult.ok ? rainfallResult.data : null,
     });
 
     const readiness = validateRunReadiness(state);
@@ -127,13 +136,21 @@ export function mountStormgridShell(host, options = {}) {
 
   // ── Async wiring ──────────────────────────────────────────────────────
   mountCatchmentMap(mapHost, { onSelect: onCatchmentSelect })
-    .then(({ map }) => { if (map && options.map) registerStormgridMap(map); })
+    .then((handle) => {
+      mapHandle = handle;
+      if (handle.map && options.map) registerStormgridMap(handle.map);
+      // If rainfall already loaded by the time the map is ready, restyle now.
+      if (rainfallResult && rainfallResult.ok) {
+        applyConfidenceStyling(mapHandle, rainfallResult.data);
+      }
+    })
     .catch((err) => { console.error('Stormgrid map mount failed:', err); });
 
   loadStormgridData().then((res) => {
     rainfallResult = res;
     if (res.ok) setRainfallData(state, res.data, null);
     else        setRainfallData(state, null, res.error);
+    if (mapHandle && res.ok) applyConfidenceStyling(mapHandle, res.data);
     render();
   });
 
@@ -147,8 +164,6 @@ export function mountStormgridShell(host, options = {}) {
 function describeSelected(state) {
   if (!state.selectedCatchmentId) return null;
   const id = state.selectedCatchmentId;
-  // Pull metadata from the GeoJSON feature (set by map click) — JSON
-  // payload is flat-summary-only and does not carry geometry props.
   const feat = state.selectedCatchmentFeature;
   const props = feat && feat.properties ? feat.properties : {};
   return {

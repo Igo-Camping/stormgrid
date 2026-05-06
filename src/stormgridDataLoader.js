@@ -1,12 +1,13 @@
-/* Stormgrid v0 — static data loader.
+/* Stormgrid — static data loader.
    Fetches the precomputed catchment rainfall JSON produced by
-   scripts/build_stormgrid_static_rainfall.py. Schema (flat summary):
+   scripts/build_static_rainfall.py.
 
-     { generated_at, source, window: {start,end,frame_count},
-       catchments: { <id>: {total_mm,mean_mm,min_mm,max_mm,sample_count} } }
+   Accepts both schemas:
+     v1 (flat summary, no quality fields)
+     v2 ("stormgrid.catchment_rainfall.v2" — adds coverage, frame_log, quality)
 
-   Returns null on any failure so the UI can show a clear "rainfall data
-   not available" state. Never imports radar/station/export modules. */
+   Returns null on any failure so the UI can show a "rainfall data not
+   available" state. Never imports radar/station/export modules. */
 
 const DATA_URL = './data/catchment_rainfall_latest.json';
 
@@ -47,8 +48,35 @@ export function getCatchmentRow(data, catchmentId) {
   if (!data || !data.catchments || !catchmentId) return null;
   const row = data.catchments[catchmentId];
   if (!row || typeof row !== 'object') return null;
-  if (typeof row.total_mm !== 'number') return null;
   return row;
+}
+
+export function getSchemaVersion(data) {
+  return (data && data.schema_version) || 'stormgrid.catchment_rainfall.v1';
+}
+
+export function getFrameLog(data) {
+  if (!data || !Array.isArray(data.frame_log)) return [];
+  return data.frame_log;
+}
+
+export function getQualityMeta(data) {
+  return (data && data.quality) || null;
+}
+
+/* Confidence helpers — work on a catchment row from either schema.
+   v1 rows lack coverage_fraction; we return 'unknown'. */
+export function rowConfidence(row) {
+  if (!row) return 'unknown';
+  if (typeof row.confidence === 'string') return row.confidence;
+  return 'unknown';
+}
+
+export function rowCoveragePct(row) {
+  if (!row) return null;
+  if (typeof row.coverage_pct === 'number') return row.coverage_pct;
+  if (typeof row.coverage_fraction === 'number') return row.coverage_fraction * 100;
+  return null;
 }
 
 function isShapeValid(d) {

@@ -1,17 +1,34 @@
 /* Stormgrid — catchment map.
-   Thin wrapper around a Leaflet map that:
-     1. Loads the catchments GeoJSON from the configured path
-     2. Renders catchment polygons as a click-selectable layer
-     3. Calls onSelect(catchmentId) when the user clicks a polygon
-
+   Loads the catchments GeoJSON, renders polygons, reports clicks via
+   onSelect. Exports applyConfidenceStyling() so the orchestrator can
+   recolour catchments by confidence after the rainfall JSON loads.
    Leaflet is loaded globally by the host page (window.L). */
 
 const CATCHMENT_URL = './data/catchments/catchments_dissolved.geojson';
 
-export async function mountCatchmentMap(hostEl, { onSelect, getRainfallSummary } = {}) {
-  if (!window.L) {
-    throw new Error('Stormgrid: Leaflet (window.L) is required.');
-  }
+const STYLE_BASE        = { color: '#00585b', weight: 1, opacity: 0.9, fillOpacity: 0.18 };
+const STYLE_SELECTED    = { weight: 3, fillOpacity: 0.45 };
+const STYLE_UNSELECTED  = { weight: 1, fillOpacity: 0.18 };
+
+// Colour palette for confidence levels — chosen to coexist with the
+// teal Stormgrid accent without clashing.
+const CONFIDENCE_FILLS = {
+  high:        '#3CB371',  // medium sea-green
+  medium:      '#E0A030',  // amber
+  low:         '#C0392B',  // red
+  unknown:     '#9AA5B1',  // grey
+  unavailable: '#9AA5B1',
+};
+const CONFIDENCE_STROKES = {
+  high:        '#1E6B43',
+  medium:      '#7A5A0F',
+  low:         '#7A2018',
+  unknown:     '#4A5560',
+  unavailable: '#4A5560',
+};
+
+export async function mountCatchmentMap(hostEl, { onSelect } = {}) {
+  if (!window.L) throw new Error('Stormgrid: Leaflet (window.L) is required.');
   hostEl.innerHTML = '';
   hostEl.classList.add('stormgrid-mapwrap');
 
@@ -25,6 +42,21 @@ export async function mountCatchmentMap(hostEl, { onSelect, getRainfallSummary }
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap, &copy; CARTO',
   }).addTo(map);
+
+  // Map legend
+  const legend = window.L.control({ position: 'bottomright' });
+  legend.onAdd = () => {
+    const el = window.L.DomUtil.create('div', 'stormgrid-maplegend');
+    el.innerHTML = `
+      <strong>Confidence</strong>
+      <span class="stormgrid-maplegend__row"><i style="background:${CONFIDENCE_FILLS.high}"></i>High</span>
+      <span class="stormgrid-maplegend__row"><i style="background:${CONFIDENCE_FILLS.medium}"></i>Medium</span>
+      <span class="stormgrid-maplegend__row"><i style="background:${CONFIDENCE_FILLS.low}"></i>Low</span>
+      <span class="stormgrid-maplegend__row"><i style="background:${CONFIDENCE_FILLS.unknown}"></i>Unavailable</span>
+    `;
+    return el;
+  };
+  legend.addTo(map);
 
   const status = document.createElement('div');
   status.className = 'stormgrid-mapstatus';
@@ -40,20 +72,41 @@ export async function mountCatchmentMap(hostEl, { onSelect, getRainfallSummary }
     status.textContent = `Could not load catchments: ${err.message}`;
     status.classList.add('stormgrid-mapstatus--error');
     map.setView([-33.75, 151.27], 11);
-    return { map, layer: null, geojson: null };
+    return { map, layer: null, geojson: null, status };
   }
 
   let selectedLayer = null;
+  // We hold the per-feature confidence style in a side-table so re-styling
+  // (after rainfall data arrives) doesn't trample selection state.
+  const baseStyleByFeature = new WeakMap();
+
   const layer = window.L.geoJSON(geojson, {
-    style: () => ({
-      color: '#00585b', weight: 1, opacity: 0.9, fillColor: '#00C4BE', fillOpacity: 0.18,
-    }),
+    style: () => ({ ...STYLE_BASE, fillColor: CONFIDENCE_FILLS.unknown, color: CONFIDENCE_STROKES.unknown }),
     onEachFeature: (feat, lyr) => {
       const id = feat.properties && feat.properties.catchment_id;
+      baseStyleByFeature.set(feat, {
+        fillColor: CONFIDENCE_FILLS.unknown,
+        color: CONFIDENCE_STROKES.unknown,
+        confidence: 'unknown',
+      });
       lyr.on('click', () => {
-        if (selectedLayer) selectedLayer.setStyle({ weight: 1, fillOpacity: 0.18 });
+        if (selectedLayer && selectedLayer !== lyr) {
+          const s = baseStyleByFeature.get(selectedLayer.feature) || baseStyleByFeature.get(feat);
+          selectedLayer.setStyle({
+            ...STYLE_BASE,
+            ...STYLE_UNSELECTED,
+            fillColor: s.fillColor,
+            color: s.color,
+          });
+        }
         selectedLayer = lyr;
-        lyr.setStyle({ weight: 3, fillOpacity: 0.45 });
+        const own = baseStyleByFeature.get(feat) || {};
+        lyr.setStyle({
+          ...STYLE_BASE,
+          ...STYLE_SELECTED,
+          fillColor: own.fillColor,
+          color: own.color,
+        });
         if (onSelect) onSelect(id, feat);
       });
       lyr.bindTooltip(id, { className: 'stormgrid-tooltip', sticky: true });
@@ -67,5 +120,71 @@ export async function mountCatchmentMap(hostEl, { onSelect, getRainfallSummary }
   }
   status.textContent = `${(geojson.features || []).length} catchments — click one to select`;
 
-  return { map, layer, geojson, status };
+  return { map, layer, geojson, status, baseStyleByFeature, getSelectedLayer: () => selectedLayer };
+}
+
+/* Re-style the layer's polygons by per-catchment confidence (from
+   rainfall data). Also rebinds tooltips with rainfall summary +
+   coverage. Safe to call multiple times — preserves selected state. */
+export function applyConfidenceStyling(handle, rainfallData, opts = {}) {
+  if (!handle || !handle.layer) return;
+  const { layer, baseStyleByFeature, getSelectedLayer } = handle;
+  const lastBuilt = (rainfallData && rainfallData.generated_at) || null;
+  const catchments = (rainfallData && rainfallData.catchments) || {};
+  const selectedLayer = getSelectedLayer ? getSelectedLayer() : null;
+
+  layer.eachLayer((lyr) => {
+    const feat = lyr.feature;
+    const id = feat.properties && feat.properties.catchment_id;
+    const row = id ? catchments[id] : null;
+
+    let confidence = 'unknown';
+    if (row && typeof row.confidence === 'string') confidence = row.confidence;
+    const fill = CONFIDENCE_FILLS[confidence] || CONFIDENCE_FILLS.unknown;
+    const stroke = CONFIDENCE_STROKES[confidence] || CONFIDENCE_STROKES.unknown;
+
+    if (baseStyleByFeature) {
+      baseStyleByFeature.set(feat, { fillColor: fill, color: stroke, confidence });
+    }
+
+    const isSelected = selectedLayer === lyr;
+    lyr.setStyle({
+      ...STYLE_BASE,
+      ...(isSelected ? STYLE_SELECTED : STYLE_UNSELECTED),
+      fillColor: fill,
+      color: stroke,
+    });
+
+    // Tooltip: id + summary if data present
+    const lines = [`<strong>${escapeHtml(id || '')}</strong>`];
+    if (row) {
+      const fmt = (n) => (typeof n === 'number') ? `${n.toFixed(2)} mm` : '—';
+      const cov = (typeof row.coverage_pct === 'number')
+        ? `${row.coverage_pct.toFixed(1)}%`
+        : (typeof row.coverage_fraction === 'number')
+          ? `${(row.coverage_fraction * 100).toFixed(1)}%`
+          : '—';
+      lines.push(`Total: ${fmt(row.total_mm)}`);
+      lines.push(`Mean: ${fmt(row.mean_mm)}`);
+      lines.push(`Coverage: ${cov}`);
+      lines.push(`Confidence: <strong>${escapeHtml(confidence.toUpperCase())}</strong>`);
+      if (typeof row.frames_used === 'number') {
+        lines.push(`Frames: ${row.frames_used} / ${row.frame_count}`);
+      }
+      if (lastBuilt) lines.push(`Built: ${escapeHtml(String(lastBuilt).replace('T',' ').replace('Z',' UTC'))}`);
+    } else {
+      lines.push('No precomputed data');
+    }
+    lyr.unbindTooltip();
+    lyr.bindTooltip(lines.join('<br>'), { className: 'stormgrid-tooltip', sticky: true });
+  });
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
