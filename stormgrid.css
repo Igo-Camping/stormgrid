@@ -1363,3 +1363,85 @@ html, body {
   color: #7a2018;
   line-height: 1.5;
 }
+
+/* ── IFD display-mode toggle (Point IFD / ARF-adjusted) ─────────────── */
+
+.stormgrid-ifd__modesel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: var(--sg-default-bg);
+  border-bottom: 1px solid var(--sg-line);
+  flex-wrap: wrap;
+}
+.stormgrid-ifd__modesel-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sg-muted);
+}
+.stormgrid-ifd__modesel-group {
+  display: inline-flex;
+  border: 1px solid var(--sg-line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--sg-card-bg);
+}
+.stormgrid-ifd__modesel-btn {
+  padding: 6px 14px;
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--sg-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  border-right: 1px solid var(--sg-line);
+}
+.stormgrid-ifd__modesel-btn:last-child { border-right: 0; }
+.stormgrid-ifd__modesel-btn:hover { background: rgba(0, 88, 91, 0.08); color: var(--sg-fg); }
+.stormgrid-ifd__modesel-btn--active {
+  background: var(--sg-accent);
+  color: white;
+}
+.stormgrid-ifd__modesel-btn--active:hover { background: var(--sg-accent); color: white; }
+
+/* ── ARF mode banner ─────────────────────────────────────────────────── */
+
+.stormgrid-ifd__arfwarn {
+  margin: 12px 14px 0;
+  padding: 10px 12px;
+  background: #eef5ff;
+  border: 1px solid #b9d2f7;
+  border-radius: 6px;
+  color: #1c4ea8;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.stormgrid-ifd__arfwarn--unverified {
+  background: #fff4d6;
+  border-color: #f1d893;
+  color: #5e3a00;
+}
+.stormgrid-ifd__arfwarn--err {
+  background: #fdecec;
+  border-color: #f3b6b6;
+  color: #7a1f1f;
+}
+.stormgrid-ifd__arfwarn ul {
+  margin: 6px 0 0 18px;
+  padding: 0;
+}
+.stormgrid-ifd__arfwarn ul li {
+  font-size: 11px;
+  line-height: 1.5;
+}
+.stormgrid-ifd__arfwarn code {
+  background: rgba(0,0,0,0.06);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+}

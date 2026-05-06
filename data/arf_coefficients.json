@@ -1,0 +1,31 @@
+{
+  "schema_version": "stormgrid.arf_coefficients.v1",
+  "verified": false,
+  "warning": "DEFAULT PLACEHOLDER COEFFICIENTS. Replace with values from ARR2019 Book 2 Chapter 4 Table 2.4.1 for your design region before any engineering use. While verified=false, every ARF-adjusted result is rendered with an explicit 'unverified coefficients' flag.",
+  "form": "long_duration",
+  "form_description": "Generalised ARR2019 long-duration ARF (Book 2 Ch. 4): ARF = min(1, 1 - a*A^b*D^(-c) + d*A^e*D^(-f)*(0.3+log10(AEP)) + g*10^(h*A*D/1440)*(0.3+log10(AEP))). Area A in km^2, duration D in minutes, AEP as fraction (e.g. 0.01 for 1%).",
+  "validity": {
+    "duration_min_hours":  24,
+    "duration_max_hours": 168,
+    "area_min_km2":         1,
+    "area_max_km2":     30000,
+    "note": "Long-duration ARR2019 ARF. For durations < 24 h use a short-duration ARF (different equation form); Stormgrid will flag results as extrapolated rather than silently apply this form outside its documented validity range."
+  },
+  "default_region": "east_coast_north",
+  "regions": {
+    "east_coast_north": {
+      "label": "East Coast North (covers the Sydney / Northern Beaches region per ARR2019)",
+      "source_note": "Coefficients are placeholder defaults that yield monotonic ARFs of the right shape (decreasing with area, approaching 1 for small areas). Verify against ARR2019 Book 2 Chapter 4 Table 2.4.1 before any engineering use.",
+      "coefficients": {
+        "a": 0.06,
+        "b": 0.361,
+        "c": 0.317,
+        "d": 0.0,
+        "e": 0.0,
+        "f": 0.0,
+        "g": 0.0,
+        "h": 0.0
+      }
+    }
+  }
+}

@@ -47,6 +47,7 @@ export function createStormgridState() {
     selectedWindow: '24h',
     selectedDuration: '24h',
     mapColourMode: 'confidence',
+    ifdDisplayMode: 'point',
     analysisRun: false,
     lastRunAt: null,
     cards: CARD_KEYS.reduce((acc, key) => {
@@ -106,6 +107,11 @@ export function setSelectedDuration(state, durationKey) {
 export function setMapColourMode(state, mode) {
   const allowed = new Set(['confidence', 'criticalRainfall', 'spatialVariability']);
   state.mapColourMode = allowed.has(mode) ? mode : 'confidence';
+  return state;
+}
+
+export function setIfdDisplayMode(state, mode) {
+  state.ifdDisplayMode = (mode === 'arf') ? 'arf' : 'point';
   return state;
 }
 

@@ -14,6 +14,8 @@ export function buildEventFootprint({
   rankingSort,
   selectedCatchmentId,
   ifdResult,
+  arfResult,
+  selectedCatchmentFeature,
 }) {
   const ok   = !!(rainfallResult && rainfallResult.ok && rainfallResult.data);
   const data = ok ? rainfallResult.data : null;
@@ -74,6 +76,32 @@ export function buildEventFootprint({
     };
   }
 
+  // Optional ARR2019 ARF engine block. Only emitted when ARF mode is
+  // active AND coefficients are loaded. Carries methodology flags so a
+  // downstream consumer can refuse to use unverified values.
+  let arfEngine = null;
+  if (state && state.ifdDisplayMode === 'arf' && arfResult && arfResult.ok && arfResult.data) {
+    const arfData = arfResult.data;
+    let areaKm2 = null;
+    if (selectedCatchmentFeature && selectedCatchmentFeature.properties) {
+      const a = selectedCatchmentFeature.properties.area_ha;
+      if (typeof a === 'number' && Number.isFinite(a)) areaKm2 = a / 100;
+    }
+    arfEngine = {
+      mode:            'arf_adjusted_areal_design_rainfall',
+      schema_version:  arfData.schema_version,
+      coefficients_verified: arfData.verified === true,
+      warning:         arfData.warning,
+      form:            arfData.form,
+      form_description: arfData.form_description,
+      validity:        arfData.validity,
+      region:          arfData.default_region,
+      coefficients:    arfData.regions ? (arfData.regions[arfData.default_region] || null) : null,
+      catchment_area_km2: areaKm2,
+      methodology_note: 'ARF-adjusted areal design rainfall only. No event AEP classification, no return period, no exceedance assertion. Verify coefficients against ARR2019 Book 2 Ch. 4 before any engineering use.',
+    };
+  }
+
   return {
     schema_version:        FOOTPRINT_SCHEMA,
     generated_at:          new Date().toISOString(),
@@ -81,6 +109,7 @@ export function buildEventFootprint({
     accumulation_window:   state ? state.selectedWindow : null,
     critical_duration:     durationKey,
     map_colour_mode:       state ? state.mapColourMode : null,
+    ifd_display_mode:      state ? state.ifdDisplayMode : 'point',
     filters:               { ...(rankingFilters || {}) },
     sort:                  { ...(rankingSort    || { key: 'max', order: 'desc' }) },
     source: ok ? {
@@ -91,6 +120,7 @@ export function buildEventFootprint({
       quality:        data.quality || null,
     } : null,
     point_ifd:       pointIfd,
+    arf_engine:      arfEngine,
     catchment_count: catchments.length,
     catchments,
   };

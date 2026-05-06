@@ -11,7 +11,7 @@
 import {
   createStormgridState, markManuallyChanged, STATUS,
   setSelectedCatchment, setRainfallData, setSelectedWindow, setSelectedDuration,
-  setMapColourMode,
+  setMapColourMode, setIfdDisplayMode,
   recordAnalysisRun, clearAnalysisRun,
 } from './stormgridState.js';
 import { buildDefaults }            from './stormgridDefaults.js';
@@ -36,6 +36,7 @@ import {
 } from './stormgridExports.js';
 import { loadCatchmentIfd, getCatchmentIfd } from './stormgridIfdLoader.js';
 import { renderIfdComparisonPanel } from './stormgridIfdPanel.js';
+import { loadArfCoefficients } from './stormgridArf.js';
 
 const NS = 'stormgrid';
 // Selector lists the three precomputed windows; "latest" is exposed as
@@ -58,6 +59,7 @@ export function mountStormgridShell(host, options = {}) {
   const state = createStormgridState();
   let rainfallResult = null;
   let ifdResult = null;
+  let arfResult = null;
   let mapHandle = null;
   // Ranking-panel local state — kept here rather than in stormgridState
   // because it's a presentation concern, not a workflow primitive.
@@ -205,18 +207,29 @@ export function mountStormgridShell(host, options = {}) {
         Object.assign(durationStatsByKey, cRow.duration_stats);
       }
     }
+    // Catchment area in km² from the GeoJSON feature properties (area_ha → km²).
+    let catchmentAreaKm2 = null;
+    if (state.selectedCatchmentFeature && state.selectedCatchmentFeature.properties) {
+      const a = state.selectedCatchmentFeature.properties.area_ha;
+      if (typeof a === 'number' && Number.isFinite(a)) catchmentAreaKm2 = a / 100;
+    }
     renderIfdComparisonPanel(ifdHost, {
       ifdResult,
+      arfResult,
       catchmentId: state.selectedCatchmentId,
       catchmentRow,
       durationStatsByKey,
+      catchmentAreaKm2,
+      ifdDisplayMode: state.ifdDisplayMode,
+      onIfdModeChange,
     });
 
     renderEventSummaryPanel(eventHost, {
       footprint: buildEventFootprint({
         state, rainfallResult, rankingFilters, rankingSort,
         selectedCatchmentId: state.selectedCatchmentId,
-        ifdResult,
+        selectedCatchmentFeature: state.selectedCatchmentFeature,
+        ifdResult, arfResult,
       }),
       onExport: onExportClick,
       lastExportNote,
@@ -263,11 +276,18 @@ export function mountStormgridShell(host, options = {}) {
     render();
   }
 
+  function onIfdModeChange(newMode) {
+    if (newMode === state.ifdDisplayMode) return;
+    setIfdDisplayMode(state, newMode);
+    render();
+  }
+
   function onExportClick(kind) {
     const fp = buildEventFootprint({
       state, rainfallResult, rankingFilters, rankingSort,
       selectedCatchmentId: state.selectedCatchmentId,
-      ifdResult,
+      selectedCatchmentFeature: state.selectedCatchmentFeature,
+      ifdResult, arfResult,
     });
     if (!fp || !fp.catchments || fp.catchments.length === 0) {
       lastExportNote = 'Nothing to export — no catchments in this view.';
@@ -379,6 +399,11 @@ export function mountStormgridShell(host, options = {}) {
 
   loadCatchmentIfd().then((res) => {
     ifdResult = res;
+    render();
+  });
+
+  loadArfCoefficients().then((res) => {
+    arfResult = res;
     render();
   });
 
