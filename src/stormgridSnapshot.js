@@ -6,6 +6,7 @@
 import { buildCatchmentRanking } from './stormgridRanking.js';
 import { computeArfTable, getRegion, getValidity } from './stormgridArf.js';
 import { computeDurationComparison, summariseComparisons } from './stormgridDesignComparison.js';
+import { buildEventInterpretation } from './stormgridEventInterpretation.js';
 
 const DURATION_KEYS = ['3h', '6h', '12h', '24h', '48h', '72h'];
 const DURATION_HOURS = { '3h': 3, '6h': 6, '12h': 12, '24h': 24, '48h': 48, '72h': 72 };
@@ -86,8 +87,9 @@ export function buildEventFootprint({
   // active AND coefficients are loaded. Carries methodology flags so a
   // downstream consumer can refuse to use unverified values.
   let arfEngine = null;
+  let arfData = null;
   if (state && state.ifdDisplayMode === 'arf' && arfResult && arfResult.ok && arfResult.data) {
-    const arfData = arfResult.data;
+    arfData = arfResult.data;
     let areaKm2 = null;
     if (selectedCatchmentFeature && selectedCatchmentFeature.properties) {
       const a = selectedCatchmentFeature.properties.area_ha;
@@ -111,7 +113,10 @@ export function buildEventFootprint({
   // Phase 8 — comparison interpretation. Built only when ARF mode AND
   // we have everything needed to run a real comparison; flags assert
   // that no AEP / return-period / exceedance claim has been made.
+  // Phase 9 — interpretation framework rolls up Phase 8's per-duration
+  // bands into a multi-duration consistency + confidence summary.
   let comparisonSummary = null;
+  let eventInterpretation = null;
   if (arfEngine && pointIfd && pointIfd.selected_catchment && Number.isFinite(arfEngine.catchment_area_km2)) {
     const region = getRegion(arfResult.data);
     const validity = getValidity(arfResult.data);
@@ -150,6 +155,29 @@ export function buildEventFootprint({
       byDur[dk] = computeDurationComparison({ observedMm: obs, arfDepthsByAep });
     }
     if (Object.keys(byDur).length > 0) comparisonSummary = summariseComparisons(byDur);
+    // Phase 9 — interpretation framework. Computed when comparisonSummary
+    // is built; same methodology safeguards baked in.
+    if (Object.keys(byDur).length > 0) {
+      let coverageMin = Infinity;
+      let suspectCount = 0;
+      const cRow = ok && selectedCatchmentId ? data.catchments[selectedCatchmentId] : null;
+      for (const dk of Object.keys(byDur)) {
+        const ds = cRow && cRow.duration_stats ? cRow.duration_stats[dk] : null;
+        if (ds && typeof ds.coverage_pct === 'number') {
+          coverageMin = Math.min(coverageMin, ds.coverage_pct / 100);
+        }
+        const ifdRow = cifdDurs[dk];
+        if (ifdRow && ifdRow.quality_flag === 'suspect_non_monotonic') suspectCount += 1;
+      }
+      if (!Number.isFinite(coverageMin)) coverageMin = null;
+      eventInterpretation = buildEventInterpretation({
+        catchmentId: selectedCatchmentId,
+        comparisonByDuration: byDur,
+        coefficientsVerified: !!(arfData && arfData.verified === true),
+        observedCoverageMin: coverageMin,
+        suspectIfdCount: suspectCount,
+      });
+    }
   }
 
   return {
@@ -172,6 +200,7 @@ export function buildEventFootprint({
     point_ifd:       pointIfd,
     arf_engine:      arfEngine,
     comparison_summary: comparisonSummary,
+    event_interpretation: eventInterpretation,
     catchment_count: catchments.length,
     catchments,
   };

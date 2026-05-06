@@ -15,6 +15,7 @@
 
 import { computeArfTable, getRegion, getValidity, isVerified } from './stormgridArf.js';
 import { computeDurationComparison, summariseComparisons, COMPARISON_BANDS } from './stormgridDesignComparison.js';
+import { buildEventInterpretation } from './stormgridEventInterpretation.js';
 
 const DURATION_KEYS = ['3h', '6h', '12h', '24h', '48h', '72h'];
 const AEP_COLUMNS   = ['20%', '5%', '2%', '1%'];
@@ -251,6 +252,30 @@ export function renderIfdComparisonPanel(host, {
   // ── ARF-adjusted comparison summary (ARF mode only) ─────────────────
   if (ifdDisplayMode === 'arf' && Object.keys(comparisonByDuration).length > 0) {
     host.appendChild(renderComparisonSummary(comparisonByDuration));
+
+    // ── Event interpretation framework (ARF mode only) ───────────────
+    // Inputs needed: arf_verified, min coverage in active set, count of
+    // suspect IFD rows in the active set.
+    const verified = !!(arfBundle && arfBundle.verified);
+    let coverageMin = Infinity;
+    let suspectIfdCount = 0;
+    DURATION_KEYS.forEach((dk) => {
+      const obs = (durationStatsByKey || {})[dk];
+      const ifdRow = cifd.durations[dk];
+      if (comparisonByDuration[dk] && obs && typeof obs.coverage_pct === 'number') {
+        coverageMin = Math.min(coverageMin, obs.coverage_pct / 100);
+      }
+      if (ifdRow && ifdRow.quality_flag === 'suspect_non_monotonic') suspectIfdCount += 1;
+    });
+    if (!Number.isFinite(coverageMin)) coverageMin = null;
+    const interpretation = buildEventInterpretation({
+      catchmentId,
+      comparisonByDuration,
+      coefficientsVerified: verified,
+      observedCoverageMin: coverageMin,
+      suspectIfdCount,
+    });
+    host.appendChild(renderInterpretationPanel(interpretation));
   }
 
   // ── Footer methodology card ─────────────────────────────────────────
@@ -270,6 +295,73 @@ export function renderIfdComparisonPanel(host, {
       Catchment-mean rainfall should be compared to ARF-adjusted areal design rainfall before assigning event AEP.
     `;
   host.appendChild(foot);
+}
+
+function renderInterpretationPanel(interp) {
+  const wrap = document.createElement('section');
+  wrap.className = 'stormgrid-interp';
+  if (!interp) {
+    wrap.innerHTML = '<p class="stormgrid-interp__empty">No interpretation available.</p>';
+    return wrap;
+  }
+  const c = interp.consistency || {};
+  const conf = interp.confidence || {};
+  const factorChip = (status) => `<span class="stormgrid-interp__factorchip stormgrid-interp__factorchip--${escapeAttr(status || 'unknown')}">${escapeHtml(String(status || 'unknown').toUpperCase())}</span>`;
+  const factorRows = (conf.factors || []).map((f) => `
+    <li>
+      <span class="stormgrid-interp__factorname">${escapeHtml(prettyFactorName(f.factor))}</span>
+      ${factorChip(f.status)}
+      <span class="stormgrid-interp__factordetail">${escapeHtml(f.detail || '')}</span>
+    </li>
+  `).join('');
+
+  const perDurRows = Object.entries(c.per_duration_nearest || {}).map(([dk, ne]) => `
+    <li>
+      <span class="stormgrid-interp__dur">${escapeHtml(dk)}</span>
+      <span class="stormgrid-interp__nearest">most closely resembles <strong>${escapeHtml(ne.aep)} AEP</strong></span>
+      <span class="stormgrid-interp__nearestdetail">ratio ${(ne.ratio).toFixed(2)}× · log-distance ${(ne.log_distance).toFixed(3)}</span>
+    </li>
+  `).join('');
+
+  wrap.innerHTML = `
+    <h4>Event interpretation framework
+      <span class="stormgrid-interp__conf stormgrid-interp__conf--${escapeAttr(conf.level || 'low')}">${escapeHtml(String(conf.level || 'low').toUpperCase())} confidence</span>
+    </h4>
+    <p class="stormgrid-interp__headline">${escapeHtml(interp.headline)}</p>
+
+    <details class="stormgrid-interp__details" open>
+      <summary>Per-duration nearest design envelope</summary>
+      <ul class="stormgrid-interp__list">${perDurRows || '<li class="stormgrid-interp__empty">No durations with comparable data.</li>'}</ul>
+      <p class="stormgrid-interp__sub">
+        Consistency score: <strong>${(c.consistency_score || 0).toFixed(2)}</strong>
+        (${c.agreement_count}/${c.total_durations} durations agree on dominant envelope${c.dominant_aep ? ` <strong>${escapeHtml(c.dominant_aep)} AEP</strong>` : ''}).
+      </p>
+    </details>
+
+    <details class="stormgrid-interp__details">
+      <summary>Confidence factors</summary>
+      <ul class="stormgrid-interp__factors">${factorRows}</ul>
+    </details>
+
+    <p class="stormgrid-interp__note">
+      <strong>Interpretation only — not classification.</strong>
+      Stormgrid never classifies an event AEP, never assigns a return period, and never asserts formal exceedance.
+      "Most closely resembles" describes a similarity in design depth, not an event probability.
+      Verify ARF coefficients against ARR2019 Book 2 Ch. 4 before any engineering use.
+    </p>
+  `;
+  return wrap;
+}
+
+function prettyFactorName(k) {
+  switch (k) {
+    case 'arf_coefficients_verified': return 'ARF coefficients verified';
+    case 'observed_coverage_min':     return 'Observed pixel coverage (min)';
+    case 'durations_with_data':       return 'Durations with comparable data';
+    case 'multi_duration_consistency':return 'Multi-duration consistency';
+    case 'suspect_ifd_rows':          return 'Suspect IFD rows in active set';
+    default: return k;
+  }
 }
 
 function renderComparisonSummary(comparisonByDuration) {
