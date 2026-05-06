@@ -847,3 +847,140 @@ html, body {
 .stormgrid-durresult--lowcov .stormgrid-durresult__big {
   color: #8a1f1f;
 }
+
+/* ── Catchment ranking panel ────────────────────────────────────────── */
+
+.stormgrid-rankingwrap {
+  margin: 18px 0 0;
+}
+.stormgrid-ranking {
+  border: 1px solid var(--sg-line);
+  border-radius: 8px;
+  background: var(--sg-card-bg);
+}
+.stormgrid-ranking > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 8px;
+}
+.stormgrid-ranking > summary::-webkit-details-marker { display: none; }
+.stormgrid-ranking > summary::before {
+  content: '▶';
+  display: inline-block;
+  font-size: 9px;
+  color: var(--sg-muted);
+  transition: transform 0.12s;
+}
+.stormgrid-ranking[open] > summary::before { transform: rotate(90deg); }
+.stormgrid-ranking__sub {
+  font-weight: 500;
+  color: var(--sg-muted);
+  font-size: 12px;
+}
+.stormgrid-ranking__empty {
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--sg-muted);
+}
+.stormgrid-ranking__filters {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  padding: 8px 14px 12px;
+  border-top: 1px solid var(--sg-line);
+  background: var(--sg-default-bg);
+  flex-wrap: wrap;
+}
+.stormgrid-ranking__filter {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--sg-muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.stormgrid-ranking__filter select,
+.stormgrid-ranking__filter input {
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--sg-fg);
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--sg-line);
+  border-radius: 5px;
+  background: var(--sg-card-bg);
+  min-width: 160px;
+}
+.stormgrid-ranking__filter input { min-width: 120px; }
+
+.stormgrid-ranking__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.stormgrid-ranking__table thead th {
+  text-align: left;
+  padding: 7px 12px;
+  background: var(--sg-default-bg);
+  color: var(--sg-muted);
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-top: 1px solid var(--sg-line);
+  white-space: nowrap;
+  user-select: none;
+}
+.stormgrid-ranking__sortable { cursor: pointer; }
+.stormgrid-ranking__sortable:hover { color: var(--sg-fg); }
+.stormgrid-ranking__num { text-align: right; }
+.stormgrid-ranking__rank {
+  font-weight: 700;
+  color: var(--sg-muted);
+  width: 36px;
+}
+.stormgrid-ranking__win {
+  font-size: 11px;
+  color: var(--sg-muted);
+  white-space: nowrap;
+}
+.stormgrid-ranking__row {
+  cursor: pointer;
+  transition: background 0.08s;
+}
+.stormgrid-ranking__row:hover {
+  background: rgba(0, 88, 91, 0.06);
+}
+.stormgrid-ranking__row td {
+  padding: 6px 12px;
+  border-top: 1px solid var(--sg-line);
+}
+.stormgrid-ranking__row--top5 td {
+  background: rgba(60, 179, 113, 0.08);
+}
+.stormgrid-ranking__row--selected td {
+  background: rgba(0, 196, 190, 0.18) !important;
+  font-weight: 600;
+}
+.stormgrid-ranking__row--selected .stormgrid-ranking__rank {
+  color: var(--sg-accent);
+}
+.stormgrid-ranking__note {
+  margin: 0;
+  padding: 8px 14px 12px;
+  font-size: 11px;
+  color: var(--sg-muted);
+  font-style: italic;
+}

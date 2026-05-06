@@ -27,6 +27,7 @@ import {
   renderAvailabilityPanel, renderFrameLogPanel,
   renderLastBuiltStrip, renderWindowSelector, renderDurationSelector,
 } from './stormgridAvailability.js';
+import { renderRankingPanel } from './stormgridRanking.js';
 
 const NS = 'stormgrid';
 // Selector lists the three precomputed windows; "latest" is exposed as
@@ -44,6 +45,10 @@ export function mountStormgridShell(host, options = {}) {
   const state = createStormgridState();
   let rainfallResult = null;
   let mapHandle = null;
+  // Ranking-panel local state — kept here rather than in stormgridState
+  // because it's a presentation concern, not a workflow primitive.
+  let rankingFilters = { minMm: null, confidence: 'any' };
+  let rankingSort    = { key: 'max', order: 'desc' };
 
   host.classList.add(`${NS}-root`);
   host.innerHTML = '';
@@ -98,6 +103,10 @@ export function mountStormgridShell(host, options = {}) {
   const frameLogHost = document.createElement('section');
   frameLogHost.className = `${NS}-framelogwrap`;
   host.appendChild(frameLogHost);
+
+  const rankingHost = document.createElement('section');
+  rankingHost.className = `${NS}-rankingwrap`;
+  host.appendChild(rankingHost);
 
   runBtn.addEventListener('click', () => {
     const readiness = validateRunReadiness(state);
@@ -158,6 +167,16 @@ export function mountStormgridShell(host, options = {}) {
     renderFrameLogPanel(frameLogHost, {
       data: rainfallResult && rainfallResult.ok ? rainfallResult.data : null,
     });
+    renderRankingPanel(rankingHost, {
+      data: rainfallResult && rainfallResult.ok ? rainfallResult.data : null,
+      durationKey: state.selectedDuration,
+      selectedCatchmentId: state.selectedCatchmentId,
+      filters: rankingFilters,
+      sort: rankingSort,
+      onSelectCatchment: onRankingSelect,
+      onFiltersChange: (f) => { rankingFilters = f; render(); },
+      onSortChange:    (s) => { rankingSort = s; render(); },
+    });
 
     if (mapHandle && data) {
       applyConfidenceStyling(mapHandle, data, {
@@ -192,6 +211,30 @@ export function mountStormgridShell(host, options = {}) {
     setSelectedCatchment(state, id, feature);
     clearAnalysisRun(state);
     render();
+  }
+
+  function onRankingSelect(id) {
+    if (!id) return;
+    let feature = null;
+    if (mapHandle && mapHandle.layer) {
+      mapHandle.layer.eachLayer((lyr) => {
+        const f = lyr.feature;
+        if (f && f.properties && f.properties.catchment_id === id) feature = f;
+      });
+    }
+    setSelectedCatchment(state, id, feature);
+    clearAnalysisRun(state);
+    // Mirror a polygon click on the map so the polygon also visibly reflects selection.
+    if (mapHandle && mapHandle.layer) {
+      mapHandle.layer.eachLayer((lyr) => {
+        const f = lyr.feature;
+        if (f && f.properties && f.properties.catchment_id === id) {
+          if (typeof lyr.fire === 'function') lyr.fire('click');
+        }
+      });
+    } else {
+      render();
+    }
   }
 
   function onWindowChange(newKey) {
