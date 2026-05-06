@@ -1,10 +1,10 @@
 /* Stormgrid — availability + results panel.
    Renders: source/window/payload metadata, per-catchment results
-   (with coverage + confidence + low-coverage warning), and an
-   expandable frame log panel.
+   (with coverage + confidence + low-coverage warning), critical
+   duration result panel, and an expandable frame log panel.
 
-   Backwards-compatible: rows without coverage fields show
-   "Coverage: unavailable" instead of crashing. */
+   Backwards-compatible: rows without coverage / duration fields show
+   "unavailable" instead of crashing. */
 
 import { rowConfidence, rowCoveragePct } from './stormgridDataLoader.js';
 
@@ -14,6 +14,8 @@ export function renderAvailabilityPanel(host, {
   catchmentRow,
   analysisRun,
   lastRunAt,
+  selectedDurationKey,
+  durationStats,
 }) {
   host.innerHTML = '';
   host.classList.add('stormgrid-availwrap');
@@ -70,8 +72,48 @@ export function renderAvailabilityPanel(host, {
     `;
   } else {
     sel.appendChild(renderResults(selected, catchmentRow, lastRunAt));
+    sel.appendChild(renderDurationResult(selectedDurationKey, durationStats));
   }
   host.appendChild(sel);
+}
+
+function renderDurationResult(durationKey, durationStats) {
+  const wrap = document.createElement('section');
+  wrap.className = 'stormgrid-durresult';
+  if (!durationKey) {
+    wrap.innerHTML = `<h5>Critical duration result</h5>
+      <p class="stormgrid-durresult__empty">Pick a critical duration above.</p>`;
+    return wrap;
+  }
+  if (!durationStats) {
+    wrap.innerHTML = `<h5>Critical duration result <span class="stormgrid-durresult__sub">${escapeHtml(durationKey)}</span></h5>
+      <p class="stormgrid-durresult__empty">Not available for this accumulation window or catchment.</p>`;
+    return wrap;
+  }
+  const fmtMm = (n) => (n === null || n === undefined) ? '—' : `${Number(n).toFixed(2)} mm`;
+  const fmtPct = (n) => (n === null || n === undefined) ? '—' : `${Number(n).toFixed(1)}%`;
+  const conf = String(durationStats.confidence || 'unknown').toLowerCase();
+  const lowCov = (typeof durationStats.coverage_pct === 'number' && durationStats.coverage_pct < 70);
+  wrap.classList.toggle('stormgrid-durresult--lowcov', lowCov);
+  wrap.innerHTML = `
+    <h5>Critical duration result <span class="stormgrid-durresult__sub">${escapeHtml(durationKey)}</span></h5>
+    <p class="stormgrid-durresult__lede">Wettest rolling ${escapeHtml(durationKey)} window inside the selected accumulation window.</p>
+    <dl class="stormgrid-durresult__grid">
+      <div><dt>Max accumulated</dt><dd class="stormgrid-durresult__big">${fmtMm(durationStats.max_total_mm)}</dd></div>
+      <div><dt>Confidence</dt>     <dd><span class="stormgrid-conf stormgrid-conf--${escapeAttr(conf)}">${escapeHtml(conf.toUpperCase())}</span></dd></div>
+      <div><dt>Window start</dt>   <dd>${escapeHtml(formatTs(durationStats.window_start))}</dd></div>
+      <div><dt>Window end</dt>     <dd>${escapeHtml(formatTs(durationStats.window_end))}</dd></div>
+      <div><dt>Mean / frame</dt>   <dd>${fmtMm(durationStats.mean_mm)}</dd></div>
+      <div><dt>Min / Max pixel</dt><dd>${fmtMm(durationStats.min_mm)} · ${fmtMm(durationStats.max_mm)}</dd></div>
+      <div><dt>Coverage</dt>       <dd>${fmtPct(durationStats.coverage_pct)}</dd></div>
+      <div><dt>Frames used</dt>    <dd>${durationStats.frames_used} / ${durationStats.frames_used + durationStats.frames_missing}</dd></div>
+      <div><dt>Missing frames</dt> <dd>${durationStats.frames_missing}</dd></div>
+    </dl>
+    ${lowCov
+      ? `<p class="stormgrid-durresult__warn">⚠ Low coverage in this critical sub-window — interpret with caution.</p>`
+      : ''}
+  `;
+  return wrap;
 }
 
 function renderResults(selected, row, lastRunAt) {
@@ -197,6 +239,61 @@ export function renderLastBuiltStrip(host, { rainfallResult }) {
     <strong>Last built:</strong> ${escapeHtml(formatTs(generatedAt))}
     ${stale ? '<span class="stormgrid-lastbuilt__warn">⚠ Data may be stale.</span>' : ''}
   `;
+}
+
+/* Duration selector — segmented button group.
+   `durations`: [{ key, label, durationHours, frameCount }]  (only available)
+   `allKeys`: [string] — all 6 standard duration keys, for showing disabled
+   `selectedKey`: currently selected duration key (may be null)
+   `onChange(newKey)`: callback */
+export function renderDurationSelector(host, { durations, allKeys, selectedKey, onChange }) {
+  host.innerHTML = '';
+  host.classList.add('stormgrid-durationsel');
+  const label = document.createElement('span');
+  label.className = 'stormgrid-durationsel__label';
+  label.textContent = 'Critical duration';
+  host.appendChild(label);
+
+  const group = document.createElement('div');
+  group.className = 'stormgrid-durationsel__group';
+  group.setAttribute('role', 'radiogroup');
+  group.setAttribute('aria-label', 'Rolling critical duration within the selected accumulation window');
+  const availableKeys = new Set(durations.map((d) => d.key));
+  const labelByKey    = new Map(durations.map((d) => [d.key, d.label]));
+
+  allKeys.forEach((key) => {
+    const isAvailable = availableKeys.has(key);
+    // For disabled keys we still want the same "N h" format as the available ones.
+    const fallbackLabel = (() => {
+      const m = /^(\d+)([dh])$/.exec(key);
+      if (!m) return key;
+      const unit = m[2] === 'h' ? 'h' : 'd';
+      return `${m[1]} ${unit}`;
+    })();
+    const label = labelByKey.get(key) || fallbackLabel;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'stormgrid-durationsel__btn'
+      + (isAvailable ? '' : ' stormgrid-durationsel__btn--disabled')
+      + (key === selectedKey ? ' stormgrid-durationsel__btn--active' : '');
+    btn.textContent = label;
+    btn.dataset.durationKey = key;
+    btn.disabled = !isAvailable;
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-checked', key === selectedKey ? 'true' : 'false');
+    if (!isAvailable) btn.title = 'Not available for this accumulation window';
+    btn.addEventListener('click', () => {
+      if (!isAvailable) return;
+      if (key !== selectedKey && typeof onChange === 'function') onChange(key);
+    });
+    group.appendChild(btn);
+  });
+  host.appendChild(group);
+
+  const sub = document.createElement('span');
+  sub.className = 'stormgrid-durationsel__sub';
+  sub.textContent = 'Stormgrid finds the wettest rolling duration inside the selected accumulation window.';
+  host.appendChild(sub);
 }
 
 /* Window selector — segmented button group.

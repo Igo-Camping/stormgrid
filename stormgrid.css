@@ -714,3 +714,136 @@ html, body {
   font-style: italic;
   color: var(--sg-muted);
 }
+
+/* ── Duration selector (own row below controls) ─────────────────────── */
+
+.stormgrid-durationselwrap {
+  margin: 0 0 12px;
+}
+.stormgrid-durationsel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: var(--sg-card-bg);
+  border: 1px solid var(--sg-line);
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+.stormgrid-durationsel__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sg-muted);
+}
+.stormgrid-durationsel__group {
+  display: inline-flex;
+  border: 1px solid var(--sg-line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--sg-default-bg);
+}
+.stormgrid-durationsel__btn {
+  padding: 6px 14px;
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--sg-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  border-right: 1px solid var(--sg-line);
+}
+.stormgrid-durationsel__btn:last-child { border-right: 0; }
+.stormgrid-durationsel__btn:hover:not(:disabled) {
+  background: rgba(0, 88, 91, 0.08);
+  color: var(--sg-fg);
+}
+.stormgrid-durationsel__btn--active {
+  background: var(--sg-accent);
+  color: white;
+}
+.stormgrid-durationsel__btn--active:hover {
+  background: var(--sg-accent);
+  color: white;
+}
+.stormgrid-durationsel__btn--disabled,
+.stormgrid-durationsel__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+.stormgrid-durationsel__sub {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--sg-muted);
+}
+
+/* ── Critical duration result panel ─────────────────────────────────── */
+
+.stormgrid-durresult {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--sg-line);
+}
+.stormgrid-durresult h5 {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sg-muted);
+}
+.stormgrid-durresult__sub {
+  margin-left: 6px;
+  color: var(--sg-fg);
+  font-weight: 700;
+}
+.stormgrid-durresult__lede {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--sg-muted);
+  font-style: italic;
+}
+.stormgrid-durresult__empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--sg-muted);
+}
+.stormgrid-durresult__grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px 14px;
+}
+.stormgrid-durresult__grid div { display: contents; }
+.stormgrid-durresult__grid dt {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  color: var(--sg-muted);
+}
+.stormgrid-durresult__grid dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--sg-fg);
+}
+.stormgrid-durresult__big { font-size: 16px !important; }
+.stormgrid-durresult__warn {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  background: #fde3e3;
+  border: 1px solid #f1b8b8;
+  border-radius: 6px;
+  color: #8a1f1f;
+  font-size: 12px;
+  font-weight: 600;
+}
+.stormgrid-durresult--lowcov .stormgrid-durresult__big {
+  color: #8a1f1f;
+}

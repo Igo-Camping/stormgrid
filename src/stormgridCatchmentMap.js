@@ -124,14 +124,16 @@ export async function mountCatchmentMap(hostEl, { onSelect } = {}) {
 }
 
 /* Re-style the layer's polygons by per-catchment confidence (from
-   rainfall data). Also rebinds tooltips with rainfall summary +
-   coverage. Safe to call multiple times — preserves selected state. */
+   rainfall data). Also rebinds tooltips with rainfall summary, coverage,
+   and the selected critical-duration result if duration_stats is present.
+   Safe to call multiple times — preserves selected state. */
 export function applyConfidenceStyling(handle, rainfallData, opts = {}) {
   if (!handle || !handle.layer) return;
   const { layer, baseStyleByFeature, getSelectedLayer } = handle;
   const lastBuilt = (rainfallData && rainfallData.generated_at) || null;
   const catchments = (rainfallData && rainfallData.catchments) || {};
   const selectedLayer = getSelectedLayer ? getSelectedLayer() : null;
+  const selectedDuration = (opts && opts.selectedDuration) || null;
 
   layer.eachLayer((lyr) => {
     const feat = lyr.feature;
@@ -155,7 +157,7 @@ export function applyConfidenceStyling(handle, rainfallData, opts = {}) {
       color: stroke,
     });
 
-    // Tooltip: id + summary if data present
+    // Tooltip: id + window summary + critical-duration block if available
     const lines = [`<strong>${escapeHtml(id || '')}</strong>`];
     if (row) {
       const fmt = (n) => (typeof n === 'number') ? `${n.toFixed(2)} mm` : '—';
@@ -164,14 +166,27 @@ export function applyConfidenceStyling(handle, rainfallData, opts = {}) {
         : (typeof row.coverage_fraction === 'number')
           ? `${(row.coverage_fraction * 100).toFixed(1)}%`
           : '—';
-      lines.push(`Total: ${fmt(row.total_mm)}`);
-      lines.push(`Mean: ${fmt(row.mean_mm)}`);
-      lines.push(`Coverage: ${cov}`);
-      lines.push(`Confidence: <strong>${escapeHtml(confidence.toUpperCase())}</strong>`);
+      lines.push(`Window total: ${fmt(row.total_mm)}`);
+      lines.push(`Window cov: ${cov} · ${escapeHtml(confidence.toUpperCase())}`);
       if (typeof row.frames_used === 'number') {
         lines.push(`Frames: ${row.frames_used} / ${row.frame_count}`);
       }
-      if (lastBuilt) lines.push(`Built: ${escapeHtml(String(lastBuilt).replace('T',' ').replace('Z',' UTC'))}`);
+      // Critical duration block
+      const dstat = (selectedDuration && row.duration_stats)
+        ? row.duration_stats[selectedDuration]
+        : null;
+      if (selectedDuration && dstat) {
+        const dconf = String(dstat.confidence || 'unknown').toLowerCase();
+        const dcov = (typeof dstat.coverage_pct === 'number')
+          ? `${dstat.coverage_pct.toFixed(1)}%` : '—';
+        lines.push(`<hr style="margin:3px 0;border:0;border-top:1px solid rgba(255,255,255,0.25)">`);
+        lines.push(`Critical ${escapeHtml(selectedDuration)}: ${fmt(dstat.max_total_mm)}`);
+        lines.push(`@ ${escapeHtml(String(dstat.window_start).slice(0, 16).replace('T', ' '))} UTC`);
+        lines.push(`Cov: ${dcov} · ${escapeHtml(dconf.toUpperCase())}`);
+      } else if (selectedDuration) {
+        lines.push(`Critical ${escapeHtml(selectedDuration)}: —`);
+      }
+      if (lastBuilt) lines.push(`<small>Built ${escapeHtml(String(lastBuilt).replace('T',' ').replace('Z',' UTC'))}</small>`);
     } else {
       lines.push('No precomputed data');
     }

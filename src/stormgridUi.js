@@ -10,7 +10,7 @@
 
 import {
   createStormgridState, markManuallyChanged, STATUS,
-  setSelectedCatchment, setRainfallData, setSelectedWindow,
+  setSelectedCatchment, setRainfallData, setSelectedWindow, setSelectedDuration,
   recordAnalysisRun, clearAnalysisRun,
 } from './stormgridState.js';
 import { buildDefaults }            from './stormgridDefaults.js';
@@ -21,10 +21,11 @@ import { mountCatchmentMap, applyConfidenceStyling } from './stormgridCatchmentM
 import {
   loadRainfallData, getCatchmentRow,
   getAvailableRainfallWindows, DEFAULT_WINDOW_KEY,
+  getAvailableDurations, getCatchmentDurationStats, pickDefaultDurationKey,
 } from './stormgridDataLoader.js';
 import {
   renderAvailabilityPanel, renderFrameLogPanel,
-  renderLastBuiltStrip, renderWindowSelector,
+  renderLastBuiltStrip, renderWindowSelector, renderDurationSelector,
 } from './stormgridAvailability.js';
 
 const NS = 'stormgrid';
@@ -32,6 +33,7 @@ const NS = 'stormgrid';
 // the implicit default (a copy of 24h) and not shown as a separate tile.
 const SELECTOR_WINDOWS = getAvailableRainfallWindows()
   .filter((w) => w.key !== 'latest');
+const ALL_DURATION_KEYS = ['3h', '6h', '12h', '24h', '48h', '72h'];
 
 export function mountStormgridShell(host, options = {}) {
   if (!host || !(host instanceof HTMLElement)) {
@@ -54,6 +56,10 @@ export function mountStormgridShell(host, options = {}) {
   controlsStrip.appendChild(lastBuiltHost);
   controlsStrip.appendChild(windowSelHost);
   host.appendChild(controlsStrip);
+
+  const durSelHost = document.createElement('div');
+  durSelHost.className = `${NS}-durationselwrap`;
+  host.appendChild(durSelHost);
 
   const header = document.createElement('header');
   header.className = `${NS}-header`;
@@ -103,14 +109,26 @@ export function mountStormgridShell(host, options = {}) {
   // ── Render ────────────────────────────────────────────────────────────
   function render() {
     const selected = describeSelected(state);
-    const catchmentRow = state.rainfallData && state.selectedCatchmentId
-      ? getCatchmentRow(state.rainfallData, state.selectedCatchmentId)
+    const data = state.rainfallData;
+    const catchmentRow = data && state.selectedCatchmentId
+      ? getCatchmentRow(data, state.selectedCatchmentId)
+      : null;
+
+    const availableDurations = getAvailableDurations(data);
+    // Snap selectedDuration to something available; if current pick isn't
+    // there (e.g. window changed and 48h vanished), fall back to default.
+    if (availableDurations.length > 0
+        && !availableDurations.find((d) => d.key === state.selectedDuration)) {
+      setSelectedDuration(state, pickDefaultDurationKey(availableDurations));
+    }
+    const durationStats = state.selectedCatchmentId && state.selectedDuration
+      ? getCatchmentDurationStats(data, state.selectedCatchmentId, state.selectedDuration)
       : null;
 
     const defaults = buildDefaults({
       map: getMapContext(),
       selected,
-      rainfallData: state.rainfallData,
+      rainfallData: data,
     });
     const cards = buildReviewModel(state, defaults);
     grid.innerHTML = '';
@@ -122,16 +140,30 @@ export function mountStormgridShell(host, options = {}) {
       selectedKey: state.selectedWindow,
       onChange: onWindowChange,
     });
+    renderDurationSelector(durSelHost, {
+      durations: availableDurations,
+      allKeys: ALL_DURATION_KEYS,
+      selectedKey: state.selectedDuration,
+      onChange: onDurationChange,
+    });
     renderAvailabilityPanel(availHost, {
       rainfallResult,
       selected,
       catchmentRow,
       analysisRun: !!state.analysisRun,
       lastRunAt: state.lastRunAt,
+      selectedDurationKey: state.selectedDuration,
+      durationStats,
     });
     renderFrameLogPanel(frameLogHost, {
       data: rainfallResult && rainfallResult.ok ? rainfallResult.data : null,
     });
+
+    if (mapHandle && data) {
+      applyConfidenceStyling(mapHandle, data, {
+        selectedDuration: state.selectedDuration,
+      });
+    }
 
     const readiness = validateRunReadiness(state);
     runBtn.disabled = !readiness.ready;
@@ -140,6 +172,12 @@ export function mountStormgridShell(host, options = {}) {
           ? `Ran ${formatTs(state.lastRunAt)} — click to recompute.`
           : 'Ready — click to compute results.')
       : `Disabled — ${readiness.reasons.join(' ')}`;
+  }
+
+  function onDurationChange(newKey) {
+    if (newKey === state.selectedDuration) return;
+    setSelectedDuration(state, newKey);
+    render();
   }
 
   function onEdit(cardKey) {

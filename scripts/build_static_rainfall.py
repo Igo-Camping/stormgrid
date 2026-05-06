@@ -60,6 +60,10 @@ SCHEMA_VERSION         = 'stormgrid.catchment_rainfall.v2'
 LOW_COVERAGE_THRESH    = 0.70
 HIGH_CONFIDENCE_THRESH = 0.90
 
+# Lizard frames are 3-hourly. Durations supported are integer multiples
+# of this cadence; 1h-equivalents cannot be derived from 3h data.
+FRAME_INTERVAL_HOURS = 3
+
 # Standard window definitions (name, hours).
 STANDARD_WINDOWS = [
     ('24h',  24),
@@ -67,6 +71,17 @@ STANDARD_WINDOWS = [
     ('30d',  720),
 ]
 DEFAULT_LATEST_FROM = '24h'  # latest is a copy of this window's output
+
+# Duration sub-windows analysed by rolling N-frame max within each
+# parent accumulation window. Supported only when N <= parent frame count.
+STANDARD_DURATIONS = [
+    ('3h',   3),
+    ('6h',   6),
+    ('12h',  12),
+    ('24h',  24),
+    ('48h',  48),
+    ('72h',  72),
+]
 
 
 def parse_args():
@@ -227,9 +242,79 @@ def confidence_for(coverage_fraction, frames_missing):
     return 'medium'
 
 
+def compute_duration_stats(ts_in_window, intermediates, cid, duration_hours):
+    """Sliding rolling-N-frame max over per-frame catchment means.
+
+    Returns the dict spec'd in Phase 3 — or None when there aren't enough
+    frames in the parent window to evaluate the duration.
+
+    Computation is from real per-(frame, catchment) intermediates. Frames
+    with no valid pixels contribute 0 to the rolling sum but are counted
+    in frames_missing for the chosen sub-window so the result's confidence
+    correctly reflects data quality.
+    """
+    n = duration_hours // FRAME_INTERVAL_HOURS
+    if n < 1 or len(ts_in_window) < n:
+        return None
+
+    rows = []
+    for ts in ts_in_window:
+        row = (intermediates.get(ts) or {}).get(cid)
+        rows.append(row or {'inside': 0, 'valid': 0, 'mean': None, 'min': None, 'max': None})
+
+    # If no candidate sub-window contains a single inside-pixel, the
+    # catchment doesn't overlap the raster anywhere within this window;
+    # the per-window aggregation will already have skipped it.
+    if all(r['inside'] == 0 for r in rows):
+        return None
+
+    means = [r['mean'] if r['mean'] is not None else 0.0 for r in rows]
+
+    # Find argmax of rolling sum of per-frame means (real frame data —
+    # never a scaled total).
+    n_positions = len(rows) - n + 1
+    best_i = 0
+    best_sum = float('-inf')
+    rolling = sum(means[:n])
+    if rolling > best_sum:
+        best_sum, best_i = rolling, 0
+    for i in range(1, n_positions):
+        rolling += means[i + n - 1] - means[i - 1]
+        if rolling > best_sum:
+            best_sum, best_i = rolling, i
+
+    sub = rows[best_i:best_i + n]
+    sub_inside  = sum(r['inside'] for r in sub)
+    sub_valid   = sum(r['valid']  for r in sub)
+    frames_used = sum(1 for r in sub if r['valid'] > 0)
+    frames_missing = n - frames_used
+    coverage_fraction = sub_valid / sub_inside if sub_inside > 0 else 0.0
+
+    valid_rows = [r for r in sub if r['valid'] > 0]
+    sub_mins = [r['min'] for r in valid_rows if r['min'] is not None]
+    sub_maxes = [r['max'] for r in valid_rows if r['max'] is not None]
+    sub_means_only_valid = [r['mean'] for r in valid_rows]
+
+    win_start_ts = ts_in_window[best_i]
+    win_end_ts   = win_start_ts + timedelta(hours=duration_hours)
+
+    return {
+        'max_total_mm':  round(float(best_sum), 4),
+        'window_start':  win_start_ts.strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'window_end':    win_end_ts.strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'mean_mm':       round(float(sum(sub_means_only_valid) / len(sub_means_only_valid)), 4) if sub_means_only_valid else None,
+        'min_mm':        round(float(min(sub_mins)), 4) if sub_mins else None,
+        'max_mm':        round(float(max(sub_maxes)), 4) if sub_maxes else None,
+        'coverage_pct':  round(float(coverage_fraction * 100), 1),
+        'frames_used':   int(frames_used),
+        'frames_missing': int(frames_missing),
+        'confidence':    confidence_for(coverage_fraction, frames_missing),
+    }
+
+
 def aggregate_window(catchments, intermediates, ts_in_window):
     """Aggregate the window's intermediates into a payload-ready dict.
-    Returns (payload_catchments, frame_log, frames_used).
+    Returns (payload_catchments, frame_log, frames_used, durations_meta).
     intermediates: dict[ts -> dict[cid -> stats]] (covers a superset)
     ts_in_window: list of timestamps (sorted) within this window's [start, end]"""
     cids = [c['id'] for c in catchments]
@@ -340,10 +425,33 @@ def aggregate_window(catchments, intermediates, ts_in_window):
             'confidence':        confidence_for(coverage_fraction, int(per_missing[cid])),
         }
 
-    return out_catchments, frame_records, frames_used
+    # ── Duration analysis ────────────────────────────────────────────────
+    # Top-level availability is per-window: a duration is available iff
+    # the parent window has at least N frames at the 3 h cadence.
+    parent_frame_count = len(ts_in_window)
+    durations_meta = {}
+    for dname, dhours in STANDARD_DURATIONS:
+        n = dhours // FRAME_INTERVAL_HOURS
+        durations_meta[dname] = {
+            'duration_hours': dhours,
+            'frame_count': n,
+            'available': bool(parent_frame_count >= n),
+        }
+
+    for cid in list(out_catchments.keys()):
+        duration_stats = {}
+        for dname, dhours in STANDARD_DURATIONS:
+            if not durations_meta[dname]['available']:
+                continue
+            stat = compute_duration_stats(ts_in_window, intermediates, cid, dhours)
+            if stat is not None:
+                duration_stats[dname] = stat
+        out_catchments[cid]['duration_stats'] = duration_stats
+
+    return out_catchments, frame_records, frames_used, durations_meta
 
 
-def make_payload(out_catchments, frame_records, start_dt, end_dt, frames_used):
+def make_payload(out_catchments, frame_records, start_dt, end_dt, frames_used, durations_meta):
     return {
         'schema_version': SCHEMA_VERSION,
         'generated_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
@@ -360,8 +468,10 @@ def make_payload(out_catchments, frame_records, start_dt, end_dt, frames_used):
             'notes': [
                 'Catchments below 70% coverage are flagged and should not be silently averaged.',
                 'Rainfall is uncalibrated Lizard precipitation archive output.',
+                'Duration max_total_mm is the rolling N-frame maximum within the parent window. Not an AEP, not a design rainfall, no IFD or ARF comparison performed.',
             ],
         },
+        'durations': durations_meta,
         'frame_log': frame_records,
         'catchments': out_catchments,
     }
@@ -423,9 +533,9 @@ def main():
             wstart = max_end - timedelta(hours=hours)
             ts_in = [t for t in ts_sorted if wstart <= t <= max_end]
             t0 = time.monotonic()
-            out_catchments, frame_records, frames_used = aggregate_window(
+            out_catchments, frame_records, frames_used, durations_meta = aggregate_window(
                 catchments, intermediates, ts_in)
-            payload = make_payload(out_catchments, frame_records, wstart, max_end, frames_used)
+            payload = make_payload(out_catchments, frame_records, wstart, max_end, frames_used, durations_meta)
             out_path, size = write_payload(payload, f'catchment_rainfall_{name}.json')
             print(f'[stormgrid]   {name}: {len(ts_in)} frames, {len(out_catchments)}/{len(catchments)} '
                   f'catchments out, {size/1024:.2f} KB → {out_path.relative_to(REPO)} '
@@ -453,9 +563,9 @@ def main():
           f'({len(frames)} frames, {frames_skipped} skipped)', file=sys.stderr)
 
     ts_sorted = sorted(intermediates.keys())
-    out_catchments, frame_records, frames_used = aggregate_window(
+    out_catchments, frame_records, frames_used, durations_meta = aggregate_window(
         catchments, intermediates, ts_sorted)
-    payload = make_payload(out_catchments, frame_records, start_dt, end_dt, frames_used)
+    payload = make_payload(out_catchments, frame_records, start_dt, end_dt, frames_used, durations_meta)
 
     name = args.window_name or 'latest'
     out_path, size = write_payload(payload, f'catchment_rainfall_{name}.json')

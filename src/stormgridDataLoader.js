@@ -123,6 +123,43 @@ export function rowCoveragePct(row) {
   return null;
 }
 
+/* Phase 3 — duration helpers. Tolerant of v1/v2-without-durations payloads;
+   return [] / null when the dataset doesn't carry duration_stats. */
+
+export function getAvailableDurations(data) {
+  if (!data || !data.durations) return [];
+  return Object.entries(data.durations)
+    .filter(([, meta]) => meta && meta.available)
+    .map(([key, meta]) => ({
+      key,
+      label: humanDurationLabel(key, meta),
+      durationHours: meta.duration_hours,
+      frameCount: meta.frame_count,
+    }))
+    .sort((a, b) => a.durationHours - b.durationHours);
+}
+
+export function getCatchmentDurationStats(data, catchmentId, durationKey) {
+  if (!data || !catchmentId || !durationKey) return null;
+  const row = data.catchments && data.catchments[catchmentId];
+  if (!row || !row.duration_stats) return null;
+  return row.duration_stats[durationKey] || null;
+}
+
+export function pickDefaultDurationKey(durations) {
+  if (!Array.isArray(durations) || durations.length === 0) return null;
+  const has24 = durations.find((d) => d.key === '24h');
+  if (has24) return '24h';
+  // Otherwise the longest available.
+  return durations[durations.length - 1].key;
+}
+
+function humanDurationLabel(key, meta) {
+  // Renders like "24 h" — keeps the engineering style.
+  if (!meta || typeof meta.duration_hours !== 'number') return key;
+  return `${meta.duration_hours} h`;
+}
+
 function isShapeValid(d) {
   return !!d
       && typeof d === 'object'
