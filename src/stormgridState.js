@@ -46,6 +46,7 @@ export function createStormgridState() {
     rainfallError: null,
     selectedWindow: '24h',
     selectedDuration: '24h',
+    mapColourMode: 'confidence',
     analysisRun: false,
     lastRunAt: null,
     cards: CARD_KEYS.reduce((acc, key) => {
@@ -99,6 +100,12 @@ export function setSelectedWindow(state, windowKey) {
 
 export function setSelectedDuration(state, durationKey) {
   state.selectedDuration = durationKey ? String(durationKey) : null;
+  return state;
+}
+
+export function setMapColourMode(state, mode) {
+  const allowed = new Set(['confidence', 'criticalRainfall', 'spatialVariability']);
+  state.mapColourMode = allowed.has(mode) ? mode : 'confidence';
   return state;
 }
 

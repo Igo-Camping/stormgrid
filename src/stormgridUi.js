@@ -11,6 +11,7 @@
 import {
   createStormgridState, markManuallyChanged, STATUS,
   setSelectedCatchment, setRainfallData, setSelectedWindow, setSelectedDuration,
+  setMapColourMode,
   recordAnalysisRun, clearAnalysisRun,
 } from './stormgridState.js';
 import { buildDefaults }            from './stormgridDefaults.js';
@@ -26,6 +27,7 @@ import {
 import {
   renderAvailabilityPanel, renderFrameLogPanel,
   renderLastBuiltStrip, renderWindowSelector, renderDurationSelector,
+  renderMapModeSelector,
 } from './stormgridAvailability.js';
 import { renderRankingPanel } from './stormgridRanking.js';
 
@@ -35,6 +37,11 @@ const NS = 'stormgrid';
 const SELECTOR_WINDOWS = getAvailableRainfallWindows()
   .filter((w) => w.key !== 'latest');
 const ALL_DURATION_KEYS = ['3h', '6h', '12h', '24h', '48h', '72h'];
+const MAP_COLOUR_MODES = [
+  { key: 'confidence',         label: 'Data confidence' },
+  { key: 'criticalRainfall',   label: 'Critical-duration rainfall' },
+  { key: 'spatialVariability', label: 'Spatial variability' },
+];
 
 export function mountStormgridShell(host, options = {}) {
   if (!host || !(host instanceof HTMLElement)) {
@@ -65,6 +72,10 @@ export function mountStormgridShell(host, options = {}) {
   const durSelHost = document.createElement('div');
   durSelHost.className = `${NS}-durationselwrap`;
   host.appendChild(durSelHost);
+
+  const mapModeHost = document.createElement('div');
+  mapModeHost.className = `${NS}-mapmodewrap`;
+  host.appendChild(mapModeHost);
 
   const header = document.createElement('header');
   header.className = `${NS}-header`;
@@ -155,6 +166,11 @@ export function mountStormgridShell(host, options = {}) {
       selectedKey: state.selectedDuration,
       onChange: onDurationChange,
     });
+    renderMapModeSelector(mapModeHost, {
+      modes: MAP_COLOUR_MODES,
+      selectedKey: state.mapColourMode,
+      onChange: onMapColourModeChange,
+    });
     renderAvailabilityPanel(availHost, {
       rainfallResult,
       selected,
@@ -182,6 +198,7 @@ export function mountStormgridShell(host, options = {}) {
     if (mapHandle && data) {
       applyConfidenceStyling(mapHandle, data, {
         selectedDuration: state.selectedDuration,
+        mode: state.mapColourMode,
       });
     }
 
@@ -197,6 +214,12 @@ export function mountStormgridShell(host, options = {}) {
   function onDurationChange(newKey) {
     if (newKey === state.selectedDuration) return;
     setSelectedDuration(state, newKey);
+    render();
+  }
+
+  function onMapColourModeChange(newMode) {
+    if (newMode === state.mapColourMode) return;
+    setMapColourMode(state, newMode);
     render();
   }
 

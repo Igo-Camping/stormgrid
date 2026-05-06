@@ -1059,3 +1059,78 @@ html, body {
   color: var(--sg-muted);
   font-style: italic;
 }
+
+/* ── Map colour mode selector (own row below duration) ──────────────── */
+
+.stormgrid-mapmodewrap { margin: 0 0 12px; }
+.stormgrid-mapmodesel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: var(--sg-card-bg);
+  border: 1px solid var(--sg-line);
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+.stormgrid-mapmodesel__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sg-muted);
+}
+.stormgrid-mapmodesel__group {
+  display: inline-flex;
+  border: 1px solid var(--sg-line);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--sg-default-bg);
+}
+.stormgrid-mapmodesel__btn {
+  padding: 6px 14px;
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--sg-muted);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  border-right: 1px solid var(--sg-line);
+}
+.stormgrid-mapmodesel__btn:last-child { border-right: 0; }
+.stormgrid-mapmodesel__btn:hover { background: rgba(0, 88, 91, 0.08); color: var(--sg-fg); }
+.stormgrid-mapmodesel__btn--active {
+  background: var(--sg-accent);
+  color: white;
+}
+.stormgrid-mapmodesel__btn--active:hover {
+  background: var(--sg-accent);
+  color: white;
+}
+
+/* ── Legend gradient bar (criticalRainfall mode) ────────────────────── */
+
+.stormgrid-maplegend__bar {
+  display: block;
+  width: 140px;
+  height: 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(0,0,0,0.14);
+  margin: 4px 0 2px;
+}
+.stormgrid-maplegend__bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  color: var(--sg-muted);
+}
+.stormgrid-maplegend__range {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--sg-muted);
+  font-style: italic;
+}

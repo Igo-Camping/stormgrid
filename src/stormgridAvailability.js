@@ -346,6 +346,38 @@ export function renderDurationSelector(host, { durations, allKeys, selectedKey, 
   host.appendChild(sub);
 }
 
+/* Map colour-mode selector — segmented button group.
+   `modes`: [{ key, label }]
+   `selectedKey`: current mode
+   `onChange(newKey)`: callback */
+export function renderMapModeSelector(host, { modes, selectedKey, onChange }) {
+  host.innerHTML = '';
+  host.classList.add('stormgrid-mapmodesel');
+  const label = document.createElement('span');
+  label.className = 'stormgrid-mapmodesel__label';
+  label.textContent = 'Map colour';
+  host.appendChild(label);
+  const group = document.createElement('div');
+  group.className = 'stormgrid-mapmodesel__group';
+  group.setAttribute('role', 'radiogroup');
+  group.setAttribute('aria-label', 'Map polygon colour mode');
+  modes.forEach((m) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'stormgrid-mapmodesel__btn'
+      + (m.key === selectedKey ? ' stormgrid-mapmodesel__btn--active' : '');
+    btn.textContent = m.label;
+    btn.dataset.mapMode = m.key;
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-checked', m.key === selectedKey ? 'true' : 'false');
+    btn.addEventListener('click', () => {
+      if (m.key !== selectedKey && typeof onChange === 'function') onChange(m.key);
+    });
+    group.appendChild(btn);
+  });
+  host.appendChild(group);
+}
+
 /* Window selector — segmented button group.
    `windows`: [{ key, label }]
    `selectedKey`: currently selected window key
