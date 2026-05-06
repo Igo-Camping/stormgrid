@@ -126,6 +126,7 @@ export async function mountCatchmentMap(hostEl, { onSelect } = {}) {
   window.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     maxZoom: 19,
     attribution: '&copy; OpenStreetMap, &copy; CARTO',
+    crossOrigin: 'anonymous',  // allows html2canvas to read tile pixels for PNG snapshot
   }).addTo(map);
 
   const legend = window.L.control({ position: 'bottomright' });

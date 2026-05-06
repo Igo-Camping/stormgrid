@@ -1134,3 +1134,76 @@ html, body {
   color: var(--sg-muted);
   font-style: italic;
 }
+
+/* ── Event summary + exports panel ──────────────────────────────────── */
+
+.stormgrid-eventwrap {
+  margin: 18px 0 0;
+  padding: 14px 16px;
+  background: var(--sg-card-bg);
+  border: 1px solid var(--sg-line);
+  border-radius: 8px;
+}
+.stormgrid-eventhead {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.stormgrid-event__empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--sg-muted);
+}
+.stormgrid-event__grid {
+  margin: 0 0 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 6px 18px;
+  font-size: 12px;
+}
+.stormgrid-event__grid div { display: contents; }
+.stormgrid-event__grid dt {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sg-muted);
+}
+.stormgrid-event__grid dd {
+  margin: 0 0 6px;
+  font-variant-numeric: tabular-nums;
+  color: var(--sg-fg);
+}
+.stormgrid-event__exports {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  border-top: 1px dashed var(--sg-line);
+  padding-top: 10px;
+}
+.stormgrid-event__btn {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 7px 14px;
+  border-radius: 5px;
+  border: 1px solid var(--sg-line);
+  background: var(--sg-default-bg);
+  color: var(--sg-fg);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.stormgrid-event__btn:hover {
+  background: var(--sg-accent);
+  color: white;
+  border-color: var(--sg-accent);
+}
+.stormgrid-event__status {
+  font-size: 11px;
+  color: var(--sg-muted);
+  font-style: italic;
+  margin-left: auto;
+  min-height: 16px;
+}

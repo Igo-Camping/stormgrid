@@ -30,6 +30,10 @@ import {
   renderMapModeSelector,
 } from './stormgridAvailability.js';
 import { renderRankingPanel } from './stormgridRanking.js';
+import { buildEventFootprint } from './stormgridSnapshot.js';
+import {
+  renderEventSummaryPanel, exportCsv, exportJson, exportGeoJSON, exportPngSnapshot,
+} from './stormgridExports.js';
 
 const NS = 'stormgrid';
 // Selector lists the three precomputed windows; "latest" is exposed as
@@ -56,6 +60,7 @@ export function mountStormgridShell(host, options = {}) {
   // because it's a presentation concern, not a workflow primitive.
   let rankingFilters = { minMm: null, confidence: 'any' };
   let rankingSort    = { key: 'max', order: 'desc' };
+  let lastExportNote = '';
 
   host.classList.add(`${NS}-root`);
   host.innerHTML = '';
@@ -110,6 +115,10 @@ export function mountStormgridShell(host, options = {}) {
   runBar.appendChild(runBtn);
   runBar.appendChild(runReason);
   host.appendChild(runBar);
+
+  const eventHost = document.createElement('section');
+  eventHost.className = `${NS}-eventwrap`;
+  host.appendChild(eventHost);
 
   const frameLogHost = document.createElement('section');
   frameLogHost.className = `${NS}-framelogwrap`;
@@ -181,6 +190,14 @@ export function mountStormgridShell(host, options = {}) {
       durationStats,
       spatialMetrics: durationStats && durationStats.spatial_metrics ? durationStats.spatial_metrics : null,
     });
+    renderEventSummaryPanel(eventHost, {
+      footprint: buildEventFootprint({
+        state, rainfallResult, rankingFilters, rankingSort,
+        selectedCatchmentId: state.selectedCatchmentId,
+      }),
+      onExport: onExportClick,
+      lastExportNote,
+    });
     renderFrameLogPanel(frameLogHost, {
       data: rainfallResult && rainfallResult.ok ? rainfallResult.data : null,
     });
@@ -221,6 +238,44 @@ export function mountStormgridShell(host, options = {}) {
     if (newMode === state.mapColourMode) return;
     setMapColourMode(state, newMode);
     render();
+  }
+
+  function onExportClick(kind) {
+    const fp = buildEventFootprint({
+      state, rainfallResult, rankingFilters, rankingSort,
+      selectedCatchmentId: state.selectedCatchmentId,
+    });
+    if (!fp || !fp.catchments || fp.catchments.length === 0) {
+      lastExportNote = 'Nothing to export — no catchments in this view.';
+      render();
+      return;
+    }
+    lastExportNote = `Preparing ${kind.toUpperCase()}…`;
+    render();
+    const finish = (msg) => { lastExportNote = msg; render(); };
+    try {
+      if (kind === 'csv') {
+        exportCsv(fp);
+        finish(`CSV downloaded (${fp.catchment_count} rows).`);
+      } else if (kind === 'json') {
+        exportJson(fp);
+        finish(`JSON downloaded.`);
+      } else if (kind === 'geojson') {
+        exportGeoJSON(fp)
+          .then(() => finish(`GeoJSON downloaded (${fp.catchment_count} features).`))
+          .catch((err) => finish(`GeoJSON failed: ${err.message}`));
+      } else if (kind === 'png') {
+        // Snapshot the whole Stormgrid app region (sg-page covers controls + map + panels).
+        const target = host.closest('main') || host;
+        exportPngSnapshot(target, fp)
+          .then(() => finish(`PNG snapshot downloaded.`))
+          .catch((err) => finish(`PNG failed: ${err.message}`));
+      } else {
+        finish(`Unknown export: ${kind}`);
+      }
+    } catch (err) {
+      finish(`Export failed: ${err.message}`);
+    }
   }
 
   function onEdit(cardKey) {
