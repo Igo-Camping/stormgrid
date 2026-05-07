@@ -1,0 +1,1734 @@
+{
+  "schema_version": "stormgrid.catchment_climatology.v1",
+  "generated_at": "2026-05-07T00:32:45.491115+00:00",
+  "archive_size": 3,
+  "archive_size_by_window": {
+    "24h": 1,
+    "7d": 1,
+    "30d": 1
+  },
+  "most_recent_by_window": {
+    "24h": {
+      "event_id": "evt_24h_20260509T1200_0b4f50180d",
+      "archived_at": "2026-05-06T03:11:57Z"
+    },
+    "7d": {
+      "event_id": "evt_7d_20260503T1200_4c4db37a47",
+      "archived_at": "2026-05-06T03:11:57Z"
+    },
+    "30d": {
+      "event_id": "evt_30d_20260410T1200_da46f467da",
+      "archived_at": "2026-05-06T03:11:57Z"
+    }
+  },
+  "bands": [
+    {
+      "name": "light",
+      "min_mm": 0,
+      "max_mm": 10
+    },
+    {
+      "name": "moderate",
+      "min_mm": 10,
+      "max_mm": 25
+    },
+    {
+      "name": "heavy",
+      "min_mm": 25,
+      "max_mm": 50
+    },
+    {
+      "name": "very_heavy",
+      "min_mm": 50,
+      "max_mm": 100
+    },
+    {
+      "name": "extreme",
+      "min_mm": 100,
+      "max_mm": null
+    }
+  ],
+  "methodology_note": "Bands describe rainfall volume only. They are NOT an AEP classification, NOT a return-period assignment, and NOT a formal exceedance assertion. Use them for qualitative operational context only.",
+  "catchments": {
+    "catch_61": {
+      "catchment_id": "catch_61",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 1.017,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.676,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 24.738,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_36": {
+      "catchment_id": "catch_36",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.952,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.023,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 22.116,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_12": {
+      "catchment_id": "catch_12",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.876,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.227,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 23.115,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_28": {
+      "catchment_id": "catch_28",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.862,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.927,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 21.487,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_3": {
+      "catchment_id": "catch_3",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.86,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.07,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 22.601,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_62": {
+      "catchment_id": "catch_62",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.857,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.209,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 22.973,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_4": {
+      "catchment_id": "catch_4",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.85,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.07,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 22.514,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_22": {
+      "catchment_id": "catch_22",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.842,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.002,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 22.039,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_9": {
+      "catchment_id": "catch_9",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.839,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.18,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 22.735,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_65": {
+      "catchment_id": "catch_65",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.839,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.193,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 22.848,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_27": {
+      "catchment_id": "catch_27",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.83,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.88,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 21.201,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_33": {
+      "catchment_id": "catch_33",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.83,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.88,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 21.201,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_42": {
+      "catchment_id": "catch_42",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.83,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.88,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 21.201,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_21": {
+      "catchment_id": "catch_21",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.826,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.882,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 21.186,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_29": {
+      "catchment_id": "catch_29",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.826,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.882,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 21.186,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_35": {
+      "catchment_id": "catch_35",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.826,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.928,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 21.001,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_19": {
+      "catchment_id": "catch_19",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.815,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.888,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 21.139,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_58": {
+      "catchment_id": "catch_58",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.774,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.157,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 22.418,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_20": {
+      "catchment_id": "catch_20",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.772,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.909,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 20.962,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_11": {
+      "catchment_id": "catch_11",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.765,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.117,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 22.202,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_59": {
+      "catchment_id": "catch_59",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.76,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.12,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 22.281,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_67": {
+      "catchment_id": "catch_67",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.76,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.12,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 22.281,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_111": {
+      "catchment_id": "catch_111",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.756,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.108,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 22.127,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_1": {
+      "catchment_id": "catch_1",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.753,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.061,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 21.647,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_5": {
+      "catchment_id": "catch_5",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.739,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.059,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 21.514,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_6": {
+      "catchment_id": "catch_6",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.724,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.104,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 21.866,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_16": {
+      "catchment_id": "catch_16",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.713,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.96,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 20.825,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_31": {
+      "catchment_id": "catch_31",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.711,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.913,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 20.497,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_47": {
+      "catchment_id": "catch_47",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.704,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.867,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 19.985,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_13": {
+      "catchment_id": "catch_13",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.638,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.021,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 20.652,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_14": {
+      "catchment_id": "catch_14",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.628,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 9.004,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 20.47,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_15": {
+      "catchment_id": "catch_15",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.612,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.982,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 20.23,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_17": {
+      "catchment_id": "catch_17",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.59,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.912,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 19.692,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_23": {
+      "catchment_id": "catch_23",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.58,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.91,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 19.611,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    },
+    "catch_45": {
+      "catchment_id": "catch_45",
+      "total_events_seen": 3,
+      "by_window": {
+        "24h": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 0.569,
+          "highest_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_event_id": "evt_24h_20260509T1200_0b4f50180d",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "7d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 1,
+            "moderate": 0,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 8.866,
+          "highest_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_event_id": "evt_7d_20260503T1200_4c4db37a47",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        },
+        "30d": {
+          "events_seen": 1,
+          "band_counts": {
+            "light": 0,
+            "moderate": 1,
+            "heavy": 0,
+            "very_heavy": 0,
+            "extreme": 0
+          },
+          "highest_total_mm": 19.273,
+          "highest_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_event_id": "evt_30d_20260410T1200_da46f467da",
+          "most_recent_archived_at": "2026-05-06T03:11:57Z"
+        }
+      }
+    }
+  }
+}

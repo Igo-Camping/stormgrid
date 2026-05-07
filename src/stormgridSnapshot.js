@@ -7,6 +7,7 @@ import { buildCatchmentRanking } from './stormgridRanking.js';
 import { computeArfTable, getRegion, getValidity } from './stormgridArf.js';
 import { computeDurationComparison, summariseComparisons } from './stormgridDesignComparison.js';
 import { buildEventInterpretation } from './stormgridEventInterpretation.js';
+import { comparablePastEvents, pickCatchmentClimatology } from './stormgridEventArchive.js';
 
 const DURATION_KEYS = ['3h', '6h', '12h', '24h', '48h', '72h'];
 const DURATION_HOURS = { '3h': 3, '6h': 6, '12h': 12, '24h': 24, '48h': 48, '72h': 72 };
@@ -23,6 +24,11 @@ export function buildEventFootprint({
   ifdResult,
   arfResult,
   selectedCatchmentFeature,
+  // Phase 13 — event archive + climatology context
+  archiveIndex,
+  climatologyData,
+  archivedEntriesById,
+  activeArchivedEventId,
 }) {
   const ok   = !!(rainfallResult && rainfallResult.ok && rainfallResult.data);
   const data = ok ? rainfallResult.data : null;
@@ -205,8 +211,52 @@ export function buildEventFootprint({
     comparison_summary: comparisonSummary,
     event_interpretation: eventInterpretation,
     operational_context: buildOperationalContextBlock(state),
+    archive_context:     buildArchiveContextBlock({
+      state, selectedCatchmentId,
+      archiveIndex, climatologyData, archivedEntriesById, activeArchivedEventId,
+    }),
     catchment_count: catchments.length,
     catchments,
+  };
+}
+
+/* Phase 13 — archive_context export block.
+   Captures three things:
+     (a) whether the current snapshot was restored from the archive
+     (b) per-catchment climatology summary (band counts, highest, most-recent)
+     (c) up to 5 comparable past events for this catchment + window
+   Methodology safeguard makes the qualitative-volume framing explicit so
+   a downstream consumer cannot mistake the band counts for AEP, return
+   period, or formal exceedance assertions.
+*/
+function buildArchiveContextBlock({
+  state, selectedCatchmentId,
+  archiveIndex, climatologyData, archivedEntriesById, activeArchivedEventId,
+}) {
+  const archiveSize = (archiveIndex && Array.isArray(archiveIndex.events))
+    ? archiveIndex.events.length : 0;
+  const climatologyForCatchment = (climatologyData && selectedCatchmentId)
+    ? pickCatchmentClimatology(climatologyData, selectedCatchmentId) : null;
+  const cmpEvents = (selectedCatchmentId && archiveIndex)
+    ? comparablePastEvents({
+        archiveIndex,
+        eventEntriesById: archivedEntriesById || {},
+        catchmentId: selectedCatchmentId,
+        accumulationWindow: state ? state.selectedWindow : null,
+        limit: 5,
+      })
+    : [];
+  return {
+    schema_version: 'stormgrid.archive_context.v1',
+    archive_size:                archiveSize,
+    archive_size_by_window:      (climatologyData && climatologyData.archive_size_by_window) || null,
+    current_event_archived:      !!activeArchivedEventId,
+    active_archived_event_id:    activeArchivedEventId || null,
+    selected_window:             state ? state.selectedWindow : null,
+    bands:                       climatologyData ? climatologyData.bands : null,
+    catchment_climatology:       climatologyForCatchment,
+    comparable_past_events:      cmpEvents,
+    methodology_note: 'Bands are descriptive volume tiers only. They are NOT an AEP classification, NOT a return-period assignment, and NOT a formal exceedance assertion. Counts reflect how many archived events fell into each volume range for this catchment in the same accumulation window.',
   };
 }
 

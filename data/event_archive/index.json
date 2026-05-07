@@ -1,0 +1,71 @@
+{
+  "schema_version": "stormgrid.event_archive_index.v1",
+  "generated_at": "2026-05-07T00:32:45.490203+00:00",
+  "event_count": 3,
+  "bands": [
+    {
+      "name": "light",
+      "min_mm": 0,
+      "max_mm": 10
+    },
+    {
+      "name": "moderate",
+      "min_mm": 10,
+      "max_mm": 25
+    },
+    {
+      "name": "heavy",
+      "min_mm": 25,
+      "max_mm": 50
+    },
+    {
+      "name": "very_heavy",
+      "min_mm": 50,
+      "max_mm": 100
+    },
+    {
+      "name": "extreme",
+      "min_mm": 100,
+      "max_mm": null
+    }
+  ],
+  "methodology_note": "Bands describe rainfall volume only. They are NOT an AEP classification, NOT a return-period assignment, and NOT a formal exceedance assertion. Use them for qualitative operational context only.",
+  "events": [
+    {
+      "event_id": "evt_24h_20260509T1200_0b4f50180d",
+      "label": "24h window ending 2026-05-09 12:00 UTC",
+      "archived_at": "2026-05-06T03:11:57Z",
+      "source_file": "data/catchment_rainfall_24h.json",
+      "archive_path": "data/event_archive/evt_24h_20260509T1200_0b4f50180d/event.json",
+      "accumulation_window": "24h",
+      "catchment_count": 35,
+      "top_catchment": "catch_61",
+      "top_total_mm": 1.017,
+      "top_band": "light"
+    },
+    {
+      "event_id": "evt_7d_20260503T1200_4c4db37a47",
+      "label": "7d window ending 2026-05-03 12:00 UTC",
+      "archived_at": "2026-05-06T03:11:57Z",
+      "source_file": "data/catchment_rainfall_7d.json",
+      "archive_path": "data/event_archive/evt_7d_20260503T1200_4c4db37a47/event.json",
+      "accumulation_window": "7d",
+      "catchment_count": 35,
+      "top_catchment": "catch_61",
+      "top_total_mm": 9.676,
+      "top_band": "light"
+    },
+    {
+      "event_id": "evt_30d_20260410T1200_da46f467da",
+      "label": "30d window ending 2026-04-10 12:00 UTC",
+      "archived_at": "2026-05-06T03:11:57Z",
+      "source_file": "data/catchment_rainfall_30d.json",
+      "archive_path": "data/event_archive/evt_30d_20260410T1200_da46f467da/event.json",
+      "accumulation_window": "30d",
+      "catchment_count": 35,
+      "top_catchment": "catch_61",
+      "top_total_mm": 24.738,
+      "top_band": "moderate"
+    }
+  ]
+}

@@ -44,6 +44,11 @@ import {
 import { loadCatchmentIfd, getCatchmentIfd } from './stormgridIfdLoader.js';
 import { renderIfdComparisonPanel } from './stormgridIfdPanel.js';
 import { loadArfCoefficients } from './stormgridArf.js';
+import {
+  loadEventArchiveIndex, loadCatchmentClimatology, loadEventArchiveEntry,
+  renderEventArchivePanel, renderCatchmentHistoryPanel,
+  comparablePastEvents, pickCatchmentClimatology,
+} from './stormgridEventArchive.js';
 
 const NS = 'stormgrid';
 // Selector lists the three precomputed windows; "latest" is exposed as
@@ -65,9 +70,15 @@ export function mountStormgridShell(host, options = {}) {
 
   const state = createStormgridState();
   let rainfallResult = null;
+  let liveRainfallResult = null;       // preserved across archive restore so we can return-to-live
   let ifdResult = null;
   let arfResult = null;
   let mapHandle = null;
+  // Phase 13 — event archive + climatology
+  let archiveResult = null;            // { ok, data: indexJson, error }
+  let climatologyResult = null;        // { ok, data: climatologyJson, error }
+  const archivedEntries = {};          // event_id → loaded event.json (cached)
+  let activeArchivedEventId = null;
   // Ranking-panel local state — kept here rather than in stormgridState
   // because it's a presentation concern, not a workflow primitive.
   let rankingFilters = { minMm: null, confidence: 'any' };
@@ -142,6 +153,17 @@ export function mountStormgridShell(host, options = {}) {
   const opCtxHost = document.createElement('section');
   opCtxHost.className = `${NS}-opctxwrap-outer`;
   host.appendChild(opCtxHost);
+
+  // Phase 13 — Event archive + Catchment history. Archive lives directly
+  // below the operational context panel; catchment history sits beneath
+  // it so the per-catchment counters stay near the per-catchment context.
+  const archiveHost = document.createElement('section');
+  archiveHost.className = `${NS}-archivewrap-outer`;
+  host.appendChild(archiveHost);
+
+  const historyHost = document.createElement('section');
+  historyHost.className = `${NS}-historywrap-outer`;
+  host.appendChild(historyHost);
 
   const eventHost = document.createElement('section');
   eventHost.className = `${NS}-eventwrap`;
@@ -268,12 +290,47 @@ export function mountStormgridShell(host, options = {}) {
       onResetEventWindow:    onOpEventWindowReset,
     });
 
+    // Phase 13 — Event archive panel
+    renderEventArchivePanel(archiveHost, {
+      archiveIndex: archiveResult && archiveResult.ok ? archiveResult.data : null,
+      archiveLoadError: archiveResult && !archiveResult.ok ? archiveResult.error : null,
+      activeArchivedEventId,
+      selectedAccumulationWindow: state.selectedWindow,
+      onRestore: onArchiveRestore,
+      onReturnToLive,
+      onArchiveCurrent: onArchiveDownloadCurrent,
+    });
+
+    // Phase 13 — Catchment history panel
+    const climData = climatologyResult && climatologyResult.ok ? climatologyResult.data : null;
+    const climErr  = climatologyResult && !climatologyResult.ok ? climatologyResult.error : null;
+    const cmpEvents = (climData && state.selectedCatchmentId)
+      ? comparablePastEvents({
+          archiveIndex: archiveResult && archiveResult.ok ? archiveResult.data : null,
+          eventEntriesById: archivedEntries,
+          catchmentId: state.selectedCatchmentId,
+          accumulationWindow: state.selectedWindow,
+          limit: 5,
+        })
+      : [];
+    renderCatchmentHistoryPanel(historyHost, {
+      catchmentId: state.selectedCatchmentId,
+      climatologyData: climData,
+      climatologyError: climErr,
+      selectedAccumulationWindow: state.selectedWindow,
+      comparableEvents: cmpEvents,
+    });
+
     renderEventSummaryPanel(eventHost, {
       footprint: buildEventFootprint({
         state, rainfallResult, rankingFilters, rankingSort,
         selectedCatchmentId: state.selectedCatchmentId,
         selectedCatchmentFeature: state.selectedCatchmentFeature,
         ifdResult, arfResult,
+        archiveIndex: archiveResult && archiveResult.ok ? archiveResult.data : null,
+        climatologyData: climData,
+        archivedEntriesById: archivedEntries,
+        activeArchivedEventId,
       }),
       onExport: onExportClick,
       lastExportNote,
@@ -332,6 +389,10 @@ export function mountStormgridShell(host, options = {}) {
       selectedCatchmentId: state.selectedCatchmentId,
       selectedCatchmentFeature: state.selectedCatchmentFeature,
       ifdResult, arfResult,
+      archiveIndex: archiveResult && archiveResult.ok ? archiveResult.data : null,
+      climatologyData: climatologyResult && climatologyResult.ok ? climatologyResult.data : null,
+      archivedEntriesById: archivedEntries,
+      activeArchivedEventId,
     });
     if (!fp || !fp.catchments || fp.catchments.length === 0) {
       lastExportNote = 'Nothing to export — no catchments in this view.';
@@ -634,8 +695,82 @@ export function mountStormgridShell(host, options = {}) {
     }
   }
 
+  /* ── Event archive (Phase 13) ──────────────────────────────────────── */
+
+  async function onArchiveRestore(eventId, archivePath) {
+    if (!eventId) return;
+    // Preserve the live result so we can restore it.
+    if (!liveRainfallResult) liveRainfallResult = rainfallResult;
+    const res = await loadEventArchiveEntry(eventId, archivePath);
+    if (!res.ok || !res.data || !res.data.rainfall_data) {
+      lastExportNote = `Archive restore failed: ${res.error || 'no rainfall_data'}`;
+      render();
+      return;
+    }
+    archivedEntries[eventId] = res.data;
+    activeArchivedEventId = eventId;
+    rainfallResult = { ok: true, data: res.data.rainfall_data };
+    setRainfallData(state, res.data.rainfall_data, null);
+    if (res.data.accumulation_window) setSelectedWindow(state, res.data.accumulation_window);
+    clearAnalysisRun(state);
+    if (mapHandle) applyConfidenceStyling(mapHandle, res.data.rainfall_data, {
+      selectedDuration: state.selectedDuration,
+      mode: state.mapColourMode,
+    });
+    render();
+  }
+
+  function onReturnToLive() {
+    if (!liveRainfallResult) return;
+    activeArchivedEventId = null;
+    rainfallResult = liveRainfallResult;
+    if (rainfallResult.ok) setRainfallData(state, rainfallResult.data, null);
+    clearAnalysisRun(state);
+    if (mapHandle && rainfallResult.ok) applyConfidenceStyling(mapHandle, rainfallResult.data, {
+      selectedDuration: state.selectedDuration,
+      mode: state.mapColourMode,
+    });
+    render();
+  }
+
+  /** Operator-driven local archive: download a JSON of the *current*
+      rainfall snapshot so it can be dropped into data/_archive_inbox/
+      and re-ingested by scripts/build_event_archive.py. We never write
+      to the deployed bucket from the browser. */
+  function onArchiveDownloadCurrent() {
+    const r = rainfallResult;
+    if (!r || !r.ok || !r.data) {
+      lastExportNote = 'Nothing to archive — load rainfall data first.';
+      render();
+      return;
+    }
+    try {
+      const blob = new Blob([JSON.stringify(r.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const win = (state.selectedWindow || 'window');
+      const ts = (r.data.window && r.data.window.start ? r.data.window.start : new Date().toISOString())
+        .replace(/[-:]/g, '').replace(/\.\d+/, '').replace('Z', 'Z');
+      a.href = url;
+      a.download = `catchment_rainfall_${win}_${ts}.json`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 250);
+      lastExportNote = `Snapshot downloaded — drop in data/_archive_inbox/ and re-run build_event_archive.py.`;
+    } catch (err) {
+      lastExportNote = `Archive download failed: ${err.message}`;
+    }
+    render();
+  }
+
   function onWindowChange(newKey) {
     if (newKey === state.selectedWindow) return;
+    // Window switch implicitly leaves archive-restore mode (since the
+    // restored snapshot was tied to its original window).
+    if (activeArchivedEventId) {
+      activeArchivedEventId = null;
+      liveRainfallResult = null; // force a fresh fetch for the new window
+    }
     setSelectedWindow(state, newKey);
     rainfallResult = null;
     setRainfallData(state, null, null);
@@ -643,6 +778,7 @@ export function mountStormgridShell(host, options = {}) {
     loadRainfallData(newKey).then((res) => {
       if (state.selectedWindow !== newKey) return; // newer click superseded this
       rainfallResult = res;
+      liveRainfallResult = res;
       if (res.ok) setRainfallData(state, res.data, null);
       else        setRainfallData(state, null, res.error);
       if (mapHandle && res.ok) applyConfidenceStyling(mapHandle, res.data);
@@ -665,9 +801,31 @@ export function mountStormgridShell(host, options = {}) {
 
   loadRainfallData(state.selectedWindow || DEFAULT_WINDOW_KEY).then((res) => {
     rainfallResult = res;
+    liveRainfallResult = res;
     if (res.ok) setRainfallData(state, res.data, null);
     else        setRainfallData(state, null, res.error);
     if (mapHandle && res.ok) applyConfidenceStyling(mapHandle, res.data);
+    render();
+  });
+
+  // Phase 13 — load archive index + climatology, then warm the per-event
+  // cache so comparablePastEvents has data on first render.
+  loadEventArchiveIndex().then(async (res) => {
+    archiveResult = res;
+    render();
+    if (res && res.ok && res.data && Array.isArray(res.data.events)) {
+      const tasks = res.data.events.slice(0, 12).map((meta) =>
+        loadEventArchiveEntry(meta.event_id, meta.archive_path)
+          .then((e) => { if (e && e.ok) archivedEntries[meta.event_id] = e.data; })
+          .catch(() => {})
+      );
+      await Promise.all(tasks);
+      render();
+    }
+  });
+
+  loadCatchmentClimatology().then((res) => {
+    climatologyResult = res;
     render();
   });
 

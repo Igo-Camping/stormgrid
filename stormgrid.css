@@ -1922,3 +1922,277 @@ html, body {
     gap: 4px;
   }
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+   Phase 13 — event archive + catchment history
+   ────────────────────────────────────────────────────────────────────── */
+
+.stormgrid-archivewrap-outer { margin: 16px 0; }
+.stormgrid-archivewrap, .stormgrid-historywrap {
+  background: var(--sg-card-bg);
+  border: 1px solid var(--sg-line);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.stormgrid-historywrap-outer { margin: 16px 0; }
+
+.stormgrid-archive__head-row, .stormgrid-history__head-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.stormgrid-archive__head, .stormgrid-history__head {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.stormgrid-archive__meta, .stormgrid-history__meta {
+  font-size: 11px;
+  color: var(--sg-muted);
+}
+.stormgrid-archive__sub, .stormgrid-history__sub {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--sg-muted);
+}
+.stormgrid-archive__empty, .stormgrid-history__empty {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--sg-muted);
+}
+.stormgrid-archive__empty--error, .stormgrid-history__empty--error { color: #b32020; }
+
+.stormgrid-archive__banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--sg-manual-bg);
+  color: var(--sg-manual-fg);
+  border: 1px solid var(--sg-manual-ln);
+  margin: 6px 0;
+  font-size: 12px;
+}
+
+.stormgrid-archive__list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.stormgrid-archive__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--sg-line);
+  border-radius: 6px;
+  background: #fbfcfd;
+}
+.stormgrid-archive__item--active {
+  background: var(--sg-manual-bg);
+  border-color: var(--sg-manual-ln);
+}
+.stormgrid-archive__row-main { flex: 1; min-width: 0; }
+.stormgrid-archive__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sg-fg);
+  margin-bottom: 2px;
+}
+.stormgrid-archive__sub-row {
+  font-size: 11px;
+  color: var(--sg-muted);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+.stormgrid-archive__archived-at {
+  font-size: 10px;
+  color: var(--sg-muted);
+  margin-top: 2px;
+}
+.stormgrid-archive__pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--sg-default-bg);
+  color: var(--sg-default-fg);
+  text-transform: uppercase;
+}
+.stormgrid-archive__pill--band-light      { background: #d6f0e3; color: #1e6b43; }
+.stormgrid-archive__pill--band-moderate   { background: #fbeed1; color: #7a5a0f; }
+.stormgrid-archive__pill--band-heavy      { background: #f8d8d2; color: #7a2018; }
+.stormgrid-archive__pill--band-very_heavy { background: #f6c2b8; color: #5e1812; }
+.stormgrid-archive__pill--band-extreme    { background: #c34538; color: #ffffff; }
+
+.stormgrid-archive__btn, .stormgrid-history__btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  border: 1px solid var(--sg-line);
+  background: #fff;
+  color: var(--sg-fg);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.stormgrid-archive__btn:hover {
+  border-color: var(--sg-accent);
+  color: var(--sg-accent);
+}
+.stormgrid-archive__btn:disabled, .stormgrid-archive__btn--active {
+  background: var(--sg-default-bg);
+  color: var(--sg-muted);
+  cursor: default;
+}
+.stormgrid-archive__btn--accent {
+  background: var(--sg-accent);
+  color: #fff;
+  border-color: var(--sg-accent);
+}
+.stormgrid-archive__btn--accent:hover {
+  background: #003a3c;
+  color: #fff;
+}
+.stormgrid-archive__actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.stormgrid-archive__hint {
+  font-size: 11px;
+  color: var(--sg-muted);
+}
+.stormgrid-archive__safety, .stormgrid-history__safety {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--sg-muted);
+  font-style: italic;
+}
+
+.stormgrid-history__win {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: #fbfcfd;
+  border: 1px solid var(--sg-line);
+  border-radius: 6px;
+}
+.stormgrid-history__winhead {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sg-fg);
+}
+.stormgrid-history__bands {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+}
+.stormgrid-history__band {
+  text-align: center;
+  padding: 6px 4px;
+  border-radius: 5px;
+  background: var(--sg-default-bg);
+  color: var(--sg-default-fg);
+}
+.stormgrid-history__band--light      { background: #d6f0e3; color: #1e6b43; }
+.stormgrid-history__band--moderate   { background: #fbeed1; color: #7a5a0f; }
+.stormgrid-history__band--heavy      { background: #f8d8d2; color: #7a2018; }
+.stormgrid-history__band--very_heavy { background: #f6c2b8; color: #5e1812; }
+.stormgrid-history__band--extreme    { background: #c34538; color: #ffffff; }
+.stormgrid-history__band-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.stormgrid-history__band-count {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+.stormgrid-history__keystats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--sg-muted);
+}
+.stormgrid-history__keystats div { display: block; }
+.stormgrid-history__keystats dt {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+.stormgrid-history__keystats dd {
+  margin: 0;
+  font-size: 12px;
+  color: var(--sg-fg);
+  word-break: break-all;
+}
+.stormgrid-history__compare {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: #fbfcfd;
+  border: 1px solid var(--sg-line);
+  border-radius: 6px;
+}
+.stormgrid-history__cmp-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stormgrid-history__cmp-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+}
+.stormgrid-history__cmp-mm {
+  font-weight: 700;
+  color: var(--sg-fg);
+  min-width: 70px;
+}
+.stormgrid-history__cmp-label {
+  color: var(--sg-muted);
+  flex: 1;
+}
+.stormgrid-history__pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--sg-default-bg);
+  color: var(--sg-default-fg);
+}
+
+@media (max-width: 720px) {
+  .stormgrid-history__bands { grid-template-columns: repeat(3, 1fr); }
+  .stormgrid-history__keystats { grid-template-columns: 1fr; }
+}
