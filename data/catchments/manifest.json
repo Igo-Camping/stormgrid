@@ -4,7 +4,7 @@
   "version": "v2",
   "is_authoritative": false,
   "source": "lizard_raster_export",
-  "input_geotiff": "C:\\Users\\fonzi\\Weather App Folder\\Assets\\Catchments\\northern-beaches-subcatchmentsZ_2026-05-04T00_05_35Z.tiff",
+  "input_geotiff": "Assets/Catchments/northern-beaches-subcatchmentsZ_2026-05-04T00_05_35Z.tiff",
   "raster": {
     "width": 3960,
     "height": 5361,
@@ -67,9 +67,9 @@
     "rationale": "Polygons are reproducible from the source raster but inherit pixel-grid stairsteps and any rasterisation artefacts. They are NOT a substitute for an authoritative vector dataset."
   },
   "outputs": {
-    "dissolved_geojson": "C:\\Users\\fonzi\\Weather App Folder\\Assets\\Catchments\\derived_v2\\catchments_dissolved.geojson",
-    "parts_geojson": "C:\\Users\\fonzi\\Weather App Folder\\Assets\\Catchments\\derived_v2\\catchments_parts.geojson",
-    "index_csv": "C:\\Users\\fonzi\\Weather App Folder\\Assets\\Catchments\\derived_v2\\catchments_index.csv",
-    "report_md": "C:\\Users\\fonzi\\Weather App Folder\\Assets\\Catchments\\derived_v2\\extraction_report.md"
+    "dissolved_geojson": "data/catchments/catchments_dissolved.geojson",
+    "parts_geojson": "data/catchments/catchments_parts.geojson",
+    "index_csv": "data/catchments/catchments_index.csv",
+    "report_md": "data/catchments/extraction_report.md"
   }
 }
