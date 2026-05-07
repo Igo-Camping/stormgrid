@@ -35,6 +35,11 @@ export function buildEventFootprint({
   calibrationSummary,
   calibrationFactors,
   gaugeData,
+  // Phase 15 — asset exposure context
+  assetExposureRows,
+  assetExposureSummary,
+  assetFilters,
+  assetsDatasetMeta,
 }) {
   const ok   = !!(rainfallResult && rainfallResult.ok && rainfallResult.data);
   const data = ok ? rainfallResult.data : null;
@@ -240,8 +245,65 @@ export function buildEventFootprint({
       gaugeData, calibrationPairings, calibrationSummary, calibrationFactors,
       selectedCatchmentId,
     }),
+    asset_exposure:      buildAssetExposureBlock({
+      rows: assetExposureRows, summary: assetExposureSummary,
+      filters: assetFilters, datasetMeta: assetsDatasetMeta,
+      calibrationMode: calibrationMode || 'raw',
+    }),
     catchment_count: catchments.length,
     catchments,
+  };
+}
+
+/* Phase 15 — asset_exposure export block.
+   Captures filter-applied asset rows with their inspection-priority
+   scores and tier counts. Includes the active dataset metadata so a
+   downstream consumer can confirm whether the assets are synthetic.
+   Methodology safeguard makes the heuristic framing explicit.
+*/
+function buildAssetExposureBlock({ rows, summary, filters, datasetMeta, calibrationMode }) {
+  const filterSnapshot = filters ? {
+    classes:        Array.from(filters.classes || []),
+    conditions:     Array.from(filters.conditions || []),
+    minSize:        filters.minSize ?? null,
+    maxSize:        filters.maxSize ?? null,
+    priorityTiers:  Array.from(filters.priorityTiers || []),
+    catchmentScope: filters.catchmentScope || null,
+  } : null;
+  const cleanRows = (Array.isArray(rows) ? rows : []).map((r) => ({
+    asset_id:         r.asset_id,
+    catchment_id:     r.catchment_id,
+    asset_class:      r.asset_class,
+    size_mm:          r.size_mm,
+    condition_grade:  r.condition_grade,
+    material:         r.material,
+    install_year:     r.install_year,
+    lonlat:           r.lonlat,
+    total_mm:         r.total_mm,
+    raw_total_mm:     r.raw_total_mm,
+    calibration_factor: r.calibration_factor,
+    critical_max_mm:  r.critical_max_mm,
+    priority_score:   r.priority_score,
+    priority_tier:    r.priority_tier,
+    inputs:           r.inputs,
+    calibration_mode: r.calibration_mode,
+  }));
+  return {
+    schema_version:   'stormgrid.asset_exposure.v1',
+    asset_count:      cleanRows.length,
+    calibration_mode: calibrationMode,
+    filters_applied:  filterSnapshot,
+    dataset: datasetMeta ? {
+      schema_version:   datasetMeta.schema_version || null,
+      generated_at:     datasetMeta.generated_at   || null,
+      is_authoritative: !!datasetMeta.is_authoritative,
+      is_synthetic:     !!datasetMeta.is_synthetic,
+      asset_count:      datasetMeta.asset_count    || null,
+      warning:          datasetMeta.warning        || null,
+    } : null,
+    summary: summary || null,
+    assets:  cleanRows,
+    methodology_note: 'Inspection-priority scoring is a transparent triage heuristic combining catchment rainfall, asset condition, asset size and asset class. It is operational triage only — NOT a failure prediction, NOT an assertion of design exceedance, NOT an AEP classification, NOT a return-period assignment, NOT a legal-liability indicator. Synthetic asset registers must be replaced with the operator\'s authoritative export before any maintenance decision relies on these scores.',
   };
 }
 

@@ -2363,3 +2363,212 @@ html, body {
 @media (max-width: 720px) {
   .stormgrid-calib__summary { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+   Phase 15 — infrastructure exposure layer
+   ────────────────────────────────────────────────────────────────────── */
+
+.stormgrid-assetfilterswrap-outer { margin: 12px 0; }
+.stormgrid-assetfilters {
+  background: var(--sg-card-bg);
+  border: 1px solid var(--sg-line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stormgrid-assetfilters__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.stormgrid-assetfilters__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sg-muted);
+  min-width: 70px;
+}
+.stormgrid-assetfilters__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #fbfcfd;
+  border: 1px solid var(--sg-line);
+  color: var(--sg-fg);
+  cursor: pointer;
+  text-transform: capitalize;
+}
+.stormgrid-assetfilters__chip:hover { border-color: var(--sg-accent); }
+.stormgrid-assetfilters__chip input { margin: 0; }
+.stormgrid-assetfilters__chip--cond-1 { background: #d6f0e3; }
+.stormgrid-assetfilters__chip--cond-2 { background: #e6f3d4; }
+.stormgrid-assetfilters__chip--cond-3 { background: #fbeed1; }
+.stormgrid-assetfilters__chip--cond-4 { background: #f8d8d2; }
+.stormgrid-assetfilters__chip--cond-5 { background: #f6c2b8; }
+.stormgrid-assetfilters__chip--tier-low     { border-color: #3CB371; }
+.stormgrid-assetfilters__chip--tier-medium  { border-color: #E0A030; }
+.stormgrid-assetfilters__chip--tier-high    { border-color: #C0773A; }
+.stormgrid-assetfilters__chip--tier-urgent  { border-color: #C0392B; }
+.stormgrid-assetfilters__num {
+  font-size: 12px;
+  padding: 3px 6px;
+  width: 80px;
+  border-radius: 4px;
+  border: 1px solid var(--sg-line);
+}
+.stormgrid-assetfilters__chipbtn {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--sg-line);
+  background: #fff;
+  color: var(--sg-muted);
+  cursor: pointer;
+}
+.stormgrid-assetfilters__chipbtn:hover { color: var(--sg-fg); border-color: var(--sg-accent); }
+.stormgrid-assetfilters__count {
+  font-size: 11px;
+  color: var(--sg-muted);
+  margin-left: auto;
+}
+.stormgrid-assetfilters__scope {
+  font-size: 11px;
+  color: var(--sg-manual-fg);
+  background: var(--sg-manual-bg);
+  border: 1px solid var(--sg-manual-ln);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stormgrid-infrawrap-outer { margin: 16px 0; }
+.stormgrid-infrawrap {
+  background: var(--sg-card-bg);
+  border: 1px solid var(--sg-line);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.stormgrid-infra__head-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.stormgrid-infra__head { margin: 0; font-size: 14px; font-weight: 700; }
+.stormgrid-infra__head small {
+  font-weight: 500; color: var(--sg-muted); font-size: 12px;
+}
+.stormgrid-infra__meta { font-size: 11px; color: var(--sg-muted); }
+.stormgrid-infra__synthbanner {
+  background: var(--sg-warn-bg);
+  color: var(--sg-warn-fg);
+  border: 1px solid var(--sg-warn-line);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.stormgrid-infra__synthbanner code {
+  background: rgba(0,0,0,0.06);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+.stormgrid-infra__tiercounts {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.stormgrid-infra__tier {
+  text-align: center;
+  padding: 6px 4px;
+  border-radius: 5px;
+  background: var(--sg-default-bg);
+  color: var(--sg-default-fg);
+  font-size: 12px;
+}
+.stormgrid-infra__tier--low     { background: #d6f0e3; color: #1e6b43; }
+.stormgrid-infra__tier--medium  { background: #fbeed1; color: #7a5a0f; }
+.stormgrid-infra__tier--high    { background: #f6c2b8; color: #5e1812; }
+.stormgrid-infra__tier--urgent  { background: #c34538; color: #ffffff; }
+.stormgrid-infra__tierlabel { display: block; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.stormgrid-infra__tiercount { display: block; font-size: 18px; font-weight: 700; margin-top: 2px; }
+.stormgrid-infra__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.stormgrid-infra__table th, .stormgrid-infra__table td {
+  text-align: left;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--sg-line);
+  vertical-align: middle;
+}
+.stormgrid-infra__table th {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sg-muted);
+}
+.stormgrid-infra__table td.num, .stormgrid-infra__table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.stormgrid-infra__table small { color: var(--sg-muted); font-size: 10px; }
+.stormgrid-infra__row--urgent  td:first-child { box-shadow: inset 3px 0 0 #C0392B; }
+.stormgrid-infra__row--high    td:first-child { box-shadow: inset 3px 0 0 #C0773A; }
+.stormgrid-infra__row--medium  td:first-child { box-shadow: inset 3px 0 0 #E0A030; }
+.stormgrid-infra__row--low     td:first-child { box-shadow: inset 3px 0 0 #3CB371; }
+.stormgrid-infra__tierpill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  background: var(--sg-default-bg);
+  color: var(--sg-default-fg);
+}
+.stormgrid-infra__tierpill--low     { background: #d6f0e3; color: #1e6b43; }
+.stormgrid-infra__tierpill--medium  { background: #fbeed1; color: #7a5a0f; }
+.stormgrid-infra__tierpill--high    { background: #f6c2b8; color: #5e1812; }
+.stormgrid-infra__tierpill--urgent  { background: #c34538; color: #ffffff; }
+.stormgrid-infra__more {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--sg-muted);
+  font-style: italic;
+}
+.stormgrid-infra__safety {
+  margin: 12px 0 0;
+  font-size: 11px;
+  color: var(--sg-muted);
+  font-style: italic;
+}
+.stormgrid-infra__empty {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--sg-muted);
+}
+.stormgrid-infra__empty--error { color: #b32020; }
+
+@media (max-width: 720px) {
+  .stormgrid-infra__tiercounts { grid-template-columns: repeat(2, 1fr); }
+  .stormgrid-assetfilters__count { margin-left: 0; width: 100%; }
+}

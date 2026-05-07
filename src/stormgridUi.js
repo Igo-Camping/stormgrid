@@ -56,6 +56,12 @@ import {
   renderCalibrationModeSelector, renderCalibrationPanel,
   CALIBRATION_METHODOLOGY_NOTE,
 } from './stormgridCalibration.js';
+import {
+  loadAssets, computeAssetExposure, summariseExposure,
+  defaultAssetFilters, applyAssetFilters,
+  applyAssetOverlay, renderAssetFilters, renderInfrastructureExposurePanel,
+  ASSETS_METHODOLOGY_NOTE,
+} from './stormgridAssets.js';
 
 const NS = 'stormgrid';
 // Selector lists the three precomputed windows; "latest" is exposed as
@@ -90,6 +96,10 @@ export function mountStormgridShell(host, options = {}) {
   let gaugeResult = null;              // { ok, data: gauge_observations.json, error }
   let calibrationMode = 'raw';         // 'raw' | 'calibrated'
   let lastRenderCalib = null;          // computed during render(); reused by onExportClick + ranking selection
+  // Phase 15 — assets
+  let assetsResult = null;             // { ok, data: FeatureCollection, error }
+  let assetFilters = defaultAssetFilters();
+  let lastRenderAssets = null;         // { rows, summary, filteredRows } cache for export reuse
   // Ranking-panel local state — kept here rather than in stormgridState
   // because it's a presentation concern, not a workflow primitive.
   let rankingFilters = { minMm: null, confidence: 'any' };
@@ -174,6 +184,15 @@ export function mountStormgridShell(host, options = {}) {
   const calibPanelHost = document.createElement('section');
   calibPanelHost.className = `${NS}-calibwrap-outer`;
   host.appendChild(calibPanelHost);
+
+  // Phase 15 — Asset filters + Infrastructure exposure panel
+  const assetFiltersHost = document.createElement('section');
+  assetFiltersHost.className = `${NS}-assetfilterswrap-outer`;
+  host.appendChild(assetFiltersHost);
+
+  const assetPanelHost = document.createElement('section');
+  assetPanelHost.className = `${NS}-infrawrap-outer`;
+  host.appendChild(assetPanelHost);
 
   // Phase 13 — Event archive + Catchment history. Archive lives directly
   // below the operational context panel; catchment history sits beneath
@@ -367,6 +386,39 @@ export function mountStormgridShell(host, options = {}) {
       onArchiveCurrent: onArchiveDownloadCurrent,
     });
 
+    // Phase 15 — recompute asset exposure each render so the panel,
+    // map overlay AND the event-summary footprint export react to
+    // window / duration / calibration / filter changes. This block
+    // must run BEFORE renderEventSummaryPanel so its closure can
+    // reference filteredRows + exposureSummary.
+    const exposure = (assetsResult && assetsResult.ok && data)
+      ? computeAssetExposure({
+          assets: assetsResult.data,
+          rainfallData: data,
+          durationKey: state.selectedDuration,
+          calibrationMode,
+        })
+      : { rows: [], dataset_max_rainfall_mm: 0, dataset_max_critical_mm: 0 };
+    const filteredRows = applyAssetFilters(exposure.rows, assetFilters);
+    const exposureSummary = summariseExposure(filteredRows);
+    lastRenderAssets = { exposure, filteredRows, summary: exposureSummary };
+
+    renderAssetFilters(assetFiltersHost, {
+      filters:        assetFilters,
+      onChange:       onAssetFiltersChange,
+      datasetCount:   exposure.rows.length,
+      filteredCount:  filteredRows.length,
+    });
+    renderInfrastructureExposurePanel(assetPanelHost, {
+      loadResult:        assetsResult,
+      filteredRows,
+      datasetCount:      exposure.rows.length,
+      summary:           exposureSummary,
+      scopedCatchmentId: assetFilters.catchmentScope,
+      calibrationMode,
+    });
+    if (mapHandle) applyAssetOverlay(mapHandle, exposure.rows, assetFilters);
+
     // Phase 13 — Catchment history panel
     const climData = climatologyResult && climatologyResult.ok ? climatologyResult.data : null;
     const climErr  = climatologyResult && !climatologyResult.ok ? climatologyResult.error : null;
@@ -404,6 +456,10 @@ export function mountStormgridShell(host, options = {}) {
         calibrationSummary:  calibSummary,
         calibrationFactors:  calibFactors,
         gaugeData:           gaugeResult && gaugeResult.ok ? gaugeResult.data : null,
+        assetExposureRows:    filteredRows,
+        assetExposureSummary: exposureSummary,
+        assetFilters,
+        assetsDatasetMeta:    assetsResult && assetsResult.ok && assetsResult.data ? assetsResult.data.metadata : null,
       }),
       onExport: onExportClick,
       lastExportNote,
@@ -467,6 +523,7 @@ export function mountStormgridShell(host, options = {}) {
   function onExportClick(kind) {
     const calib = lastRenderCalib || {};
     const exportRainfallResult = calib.effectiveRainfallResult || rainfallResult;
+    const assets = lastRenderAssets || {};
     const fp = buildEventFootprint({
       state, rainfallResult: exportRainfallResult, rankingFilters, rankingSort,
       selectedCatchmentId: state.selectedCatchmentId,
@@ -481,6 +538,10 @@ export function mountStormgridShell(host, options = {}) {
       calibrationSummary:  calib.summary,
       calibrationFactors:  calib.factors,
       gaugeData:           calib.gaugeData,
+      assetExposureRows:    assets.filteredRows,
+      assetExposureSummary: assets.summary,
+      assetFilters,
+      assetsDatasetMeta:    assetsResult && assetsResult.ok && assetsResult.data ? assetsResult.data.metadata : null,
     });
     if (!fp || !fp.catchments || fp.catchments.length === 0) {
       lastExportNote = 'Nothing to export — no catchments in this view.';
@@ -589,6 +650,10 @@ export function mountStormgridShell(host, options = {}) {
     if (lookup.feature && lookup.id) {
       setSelectedCatchment(state, lookup.id, lookup.feature);
       clearAnalysisRun(state);
+      // Phase 15 — auto-scope the assets panel to the resolved catchment
+      // so operators see the relevant assets immediately. Cleared via the
+      // filter row's "Reset" button.
+      assetFilters = { ...assetFilters, catchmentScope: lookup.id };
       // Mirror the polygon click visually so confidence styling/selection updates.
       if (mapHandle && mapHandle.layer) {
         mapHandle.layer.eachLayer((lyr) => {
@@ -783,6 +848,13 @@ export function mountStormgridShell(host, options = {}) {
     }
   }
 
+  /* ── Assets (Phase 15) ─────────────────────────────────────────────── */
+
+  function onAssetFiltersChange(nextFilters) {
+    assetFilters = nextFilters;
+    render();
+  }
+
   /* ── Calibration mode (Phase 14) ───────────────────────────────────── */
 
   function onCalibrationModeChange(newMode) {
@@ -933,6 +1005,13 @@ export function mountStormgridShell(host, options = {}) {
   // archive restores automatically.
   loadGaugeObservations().then((res) => {
     gaugeResult = res;
+    render();
+  });
+
+  // Phase 15 — assets register. Exposure scores are recomputed every render
+  // so they reflect the active window / duration / calibration mode.
+  loadAssets().then((res) => {
+    assetsResult = res;
     render();
   });
 
