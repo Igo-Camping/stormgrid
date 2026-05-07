@@ -40,6 +40,10 @@ export function buildEventFootprint({
   assetExposureSummary,
   assetFilters,
   assetsDatasetMeta,
+  // Phase 16 — cumulative rainfall overlay context
+  cumulativeOverlayMeta,
+  cumulativeOverlayState,
+  cumulativeOverlayActiveInView,
 }) {
   const ok   = !!(rainfallResult && rainfallResult.ok && rainfallResult.data);
   const data = ok ? rainfallResult.data : null;
@@ -250,8 +254,30 @@ export function buildEventFootprint({
       filters: assetFilters, datasetMeta: assetsDatasetMeta,
       calibrationMode: calibrationMode || 'raw',
     }),
+    cumulative_overlay:  buildCumulativeOverlayBlock({
+      meta: cumulativeOverlayMeta,
+      state: cumulativeOverlayState,
+      activeInView: !!cumulativeOverlayActiveInView,
+    }),
     catchment_count: catchments.length,
     catchments,
+  };
+}
+
+/* Phase 16 — cumulative_overlay export block.
+   Records whether the overlay is loaded, whether it's currently visible
+   in the view, and the full overlay metadata so a downstream consumer
+   knows exactly which window / frame coverage / data source produced
+   the visible image. The PNG itself is never inlined (footprint stays
+   compact). Methodology safeguard makes the framing explicit. */
+function buildCumulativeOverlayBlock({ meta, state, activeInView }) {
+  return {
+    schema_version:     'stormgrid.cumulative_overlay_export.v1',
+    state:              state || 'off',
+    active_in_view:     !!activeInView,
+    overlay_loaded:     !!meta,
+    overlay_metadata:   meta || null,
+    methodology_note: 'Cumulative depth derived by summing source rainfall frames inside the chosen window. Cells without valid samples are transparent — gaps are reported, never silently filled. NOT an AEP classification, NOT a return-period assignment, NOT a formal exceedance assertion.',
   };
 }
 

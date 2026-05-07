@@ -62,6 +62,12 @@ import {
   applyAssetOverlay, renderAssetFilters, renderInfrastructureExposurePanel,
   ASSETS_METHODOLOGY_NOTE,
 } from './stormgridAssets.js';
+import {
+  loadCumulativeOverlayMetadata, loadCumulativeOverlayGrid,
+  createOverlayLayer, hoverDepthAt,
+  renderOverlayControl, renderOverlayLegend,
+  CUMULATIVE_OVERLAY_METHODOLOGY_NOTE,
+} from './stormgridCumulativeOverlay.js';
 
 const NS = 'stormgrid';
 // Selector lists the three precomputed windows; "latest" is exposed as
@@ -100,6 +106,12 @@ export function mountStormgridShell(host, options = {}) {
   let assetsResult = null;             // { ok, data: FeatureCollection, error }
   let assetFilters = defaultAssetFilters();
   let lastRenderAssets = null;         // { rows, summary, filteredRows } cache for export reuse
+  // Phase 16 — cumulative rainfall overlay
+  let overlayMeta = null;              // { ok, data, error }
+  let overlayGrid = null;              // { ok, data, error }
+  let overlayState = 'off';            // 'off' | 'on'
+  let overlayLayer = null;             // active Leaflet imageOverlay
+  let overlayHover = null;             // { in_bounds, has_coverage, depth_mm, lon, lat }
   // Ranking-panel local state — kept here rather than in stormgridState
   // because it's a presentation concern, not a workflow primitive.
   let rankingFilters = { minMm: null, confidence: 'any' };
@@ -135,6 +147,11 @@ export function mountStormgridShell(host, options = {}) {
   const calibModeHost = document.createElement('div');
   calibModeHost.className = `${NS}-calibmodewrap-outer`;
   host.appendChild(calibModeHost);
+
+  // Phase 16 — cumulative rainfall overlay control (Off / On)
+  const overlayCtrlHost = document.createElement('div');
+  overlayCtrlHost.className = `${NS}-overlayctrlwrap-outer`;
+  host.appendChild(overlayCtrlHost);
 
   const header = document.createElement('header');
   header.className = `${NS}-header`;
@@ -184,6 +201,11 @@ export function mountStormgridShell(host, options = {}) {
   const calibPanelHost = document.createElement('section');
   calibPanelHost.className = `${NS}-calibwrap-outer`;
   host.appendChild(calibPanelHost);
+
+  // Phase 16 — overlay legend / hover readout
+  const overlayLegendHost = document.createElement('section');
+  overlayLegendHost.className = `${NS}-overlaylegendwrap-outer`;
+  host.appendChild(overlayLegendHost);
 
   // Phase 15 — Asset filters + Infrastructure exposure panel
   const assetFiltersHost = document.createElement('section');
@@ -439,6 +461,10 @@ export function mountStormgridShell(host, options = {}) {
       comparableEvents: cmpEvents,
     });
 
+    // archiveActive needed by both the overlay block (later) and the
+    // event-summary footprint args (here) — declared here so the
+    // closure below doesn't hit a TDZ error.
+    const archiveActiveForFootprint = !!activeArchivedEventId;
     renderEventSummaryPanel(eventHost, {
       footprint: buildEventFootprint({
         state,
@@ -460,6 +486,9 @@ export function mountStormgridShell(host, options = {}) {
         assetExposureSummary: exposureSummary,
         assetFilters,
         assetsDatasetMeta:    assetsResult && assetsResult.ok && assetsResult.data ? assetsResult.data.metadata : null,
+        cumulativeOverlayMeta:        overlayMeta && overlayMeta.ok ? overlayMeta.data : null,
+        cumulativeOverlayState:       overlayState,
+        cumulativeOverlayActiveInView: overlayState === 'on' && !archiveActiveForFootprint && !!(overlayMeta && overlayMeta.ok),
       }),
       onExport: onExportClick,
       lastExportNote,
@@ -484,6 +513,32 @@ export function mountStormgridShell(host, options = {}) {
         mode: state.mapColourMode,
       });
     }
+
+    // Phase 16 — overlay control + legend. Disabled while a restored
+    // archived event is active because the overlay reflects only the
+    // live window.
+    const overlayMetaData = overlayMeta && overlayMeta.ok ? overlayMeta.data : null;
+    const overlayLoadError = overlayMeta && !overlayMeta.ok ? overlayMeta.error
+                            : (overlayGrid && !overlayGrid.ok ? overlayGrid.error : null);
+    const archiveActive = !!activeArchivedEventId;
+    const overlayDisabled = archiveActive
+      ? 'overlay disabled while an archived event is restored — return to live to enable'
+      : (!overlayMetaData ? 'overlay metadata unavailable' : '');
+    renderOverlayControl(overlayCtrlHost, {
+      state:           overlayState,
+      available:       !!overlayMetaData && !archiveActive,
+      disabledReason:  overlayDisabled,
+      metadata:        overlayMetaData,
+      onChange:        onOverlayStateChange,
+    });
+    renderOverlayLegend(overlayLegendHost, {
+      metadata:        overlayMetaData,
+      loadError:       overlayLoadError,
+      state:           overlayState,
+      hover:           overlayHover,
+      archiveActive,
+    });
+    syncOverlayLayer(overlayMetaData, archiveActive);
 
     // Stash the live calibration context so onExportClick can re-use
     // it without recomputing pairings on click.
@@ -542,6 +597,9 @@ export function mountStormgridShell(host, options = {}) {
       assetExposureSummary: assets.summary,
       assetFilters,
       assetsDatasetMeta:    assetsResult && assetsResult.ok && assetsResult.data ? assetsResult.data.metadata : null,
+      cumulativeOverlayMeta:        overlayMeta && overlayMeta.ok ? overlayMeta.data : null,
+      cumulativeOverlayState:       overlayState,
+      cumulativeOverlayActiveInView: overlayState === 'on' && !activeArchivedEventId && !!(overlayMeta && overlayMeta.ok),
     });
     if (!fp || !fp.catchments || fp.catchments.length === 0) {
       lastExportNote = 'Nothing to export — no catchments in this view.';
@@ -855,6 +913,56 @@ export function mountStormgridShell(host, options = {}) {
     render();
   }
 
+  /* ── Cumulative rainfall overlay (Phase 16) ────────────────────────── */
+
+  function onOverlayStateChange(next) {
+    if (next !== 'on' && next !== 'off') return;
+    if (next === overlayState) return;
+    if (next === 'on' && (!overlayMeta || !overlayMeta.ok)) return;
+    if (next === 'on' && activeArchivedEventId) return; // archive-safe
+    overlayState = next;
+    if (next === 'off') overlayHover = null;
+    render();
+  }
+
+  function syncOverlayLayer(meta, archiveActive) {
+    if (!mapHandle || !mapHandle.map) return;
+    if (overlayState === 'on' && meta && !archiveActive) {
+      if (!overlayLayer) {
+        overlayLayer = createOverlayLayer(mapHandle.map, meta);
+        if (overlayLayer) overlayLayer.addTo(mapHandle.map);
+      }
+    } else if (overlayLayer) {
+      overlayLayer.remove();
+      overlayLayer = null;
+    }
+  }
+
+  function bindOverlayHover() {
+    if (!mapHandle || !mapHandle.map) return;
+    mapHandle.map.on('mousemove', (ev) => {
+      if (overlayState !== 'on' || !overlayGrid || !overlayGrid.ok) {
+        if (overlayHover) { overlayHover = null; render(); }
+        return;
+      }
+      const ll = ev && ev.latlng;
+      if (!ll) return;
+      const lookup = hoverDepthAt(overlayGrid.data, ll.lng, ll.lat);
+      const next = { ...lookup, lon: ll.lng, lat: ll.lat };
+      // Avoid re-render storms: only re-render when the meaningful
+      // bits change (in/out of bounds, depth bucket).
+      const prev = overlayHover || {};
+      const sigChanged = (prev.in_bounds !== next.in_bounds)
+        || (prev.has_coverage !== next.has_coverage)
+        || (prev.depth_mm !== next.depth_mm);
+      overlayHover = next;
+      if (sigChanged) render();
+    });
+    mapHandle.map.on('mouseout', () => {
+      if (overlayHover) { overlayHover = null; render(); }
+    });
+  }
+
   /* ── Calibration mode (Phase 14) ───────────────────────────────────── */
 
   function onCalibrationModeChange(newMode) {
@@ -966,6 +1074,9 @@ export function mountStormgridShell(host, options = {}) {
       if (rainfallResult && rainfallResult.ok) {
         applyConfidenceStyling(mapHandle, rainfallResult.data);
       }
+      // Phase 16 — bind hover after map is ready (idempotent; bindOverlayHover
+      // installs Leaflet event handlers on mapHandle.map).
+      bindOverlayHover();
     })
     .catch((err) => { console.error('Stormgrid map mount failed:', err); });
 
@@ -1014,6 +1125,17 @@ export function mountStormgridShell(host, options = {}) {
     assetsResult = res;
     render();
   });
+
+  // Phase 16 — cumulative rainfall overlay. Metadata + grid load in parallel;
+  // both must resolve before the overlay can be enabled. Hover wiring
+  // attaches once the map is ready.
+  Promise.all([loadCumulativeOverlayMetadata(), loadCumulativeOverlayGrid()])
+    .then(([meta, grid]) => {
+      overlayMeta = meta;
+      overlayGrid = grid;
+      bindOverlayHover();
+      render();
+    });
 
   loadCatchmentIfd().then((res) => {
     ifdResult = res;

@@ -1,0 +1,108 @@
+{
+  "schema_version": "stormgrid.cumulative_overlay.v1",
+  "generated_at": "2026-05-07T04:43:27.868246+00:00",
+  "bbox": [
+    151.1556363,
+    -33.8288457,
+    151.3488984,
+    -33.5667712
+  ],
+  "leaflet_bounds": [
+    [
+      -33.8288457,
+      151.1556363
+    ],
+    [
+      -33.5667712,
+      151.3488984
+    ]
+  ],
+  "image_path": "rainfall_overlay.png",
+  "image_width_px": 232,
+  "image_height_px": 314,
+  "image_pixels_per_deg": 1200,
+  "grid_path": "rainfall_grid.json",
+  "grid_pixels_per_deg": 250,
+  "grid_rows": 78,
+  "grid_cols": 58,
+  "is_authoritative": false,
+  "color_scale": {
+    "name": "stormgrid.cumulative.rainfall.v1",
+    "stops": [
+      {
+        "depth_mm": 0.1,
+        "rgba": [
+          225,
+          240,
+          245,
+          80
+        ]
+      },
+      {
+        "depth_mm": 1.0,
+        "rgba": [
+          165,
+          215,
+          230,
+          140
+        ]
+      },
+      {
+        "depth_mm": 5.0,
+        "rgba": [
+          70,
+          150,
+          175,
+          180
+        ]
+      },
+      {
+        "depth_mm": 15.0,
+        "rgba": [
+          30,
+          90,
+          120,
+          200
+        ]
+      },
+      {
+        "depth_mm": 50.0,
+        "rgba": [
+          110,
+          35,
+          100,
+          220
+        ]
+      },
+      {
+        "depth_mm": 200.0,
+        "rgba": [
+          180,
+          30,
+          60,
+          240
+        ]
+      }
+    ]
+  },
+  "warning": "Cumulative rainfall overlay is a precomputed visual aid. Bilinear reprojection from the source raster smooths sub-pixel detail. Cells with no valid samples remain transparent \u2014 gaps are reported, never silently filled.",
+  "methodology_note": "Cumulative depth derived by summing the source rainfall frames inside the chosen window. NOT an AEP classification, NOT a return-period assignment, NOT a formal exceedance assertion.",
+  "mode": "preview",
+  "is_synthetic_preview": true,
+  "data_source": "stormgrid_preview_from_catchment_rainfall_json",
+  "preview_source": "data/catchment_rainfall_30d.json",
+  "window_key": "30d",
+  "window_start_utc": "2026-04-10T12:00:00Z",
+  "window_end_utc": "2026-05-10T12:00:00Z",
+  "frame_interval_hours": 3,
+  "frame_count_expected": 241,
+  "frame_count_used": 241,
+  "frames_missing": [],
+  "gaps_present": false,
+  "stats": {
+    "depth_min_mm": 19.273300170898438,
+    "depth_max_mm": 24.73819923400879,
+    "depth_mean_mm": 20.935800552368164,
+    "wet_cell_count": 36635
+  }
+}

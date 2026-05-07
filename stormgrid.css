@@ -2572,3 +2572,154 @@ html, body {
   .stormgrid-infra__tiercounts { grid-template-columns: repeat(2, 1fr); }
   .stormgrid-assetfilters__count { margin-left: 0; width: 100%; }
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+   Phase 16 — cumulative rainfall overlay
+   ────────────────────────────────────────────────────────────────────── */
+
+.stormgrid-overlayctrlwrap-outer { margin: 6px 0 12px; }
+.stormgrid-overlayctrl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.stormgrid-overlayctrl__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sg-muted);
+}
+.stormgrid-overlayctrl__btn {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border: 1px solid var(--sg-line);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--sg-muted);
+  cursor: pointer;
+}
+.stormgrid-overlayctrl__btn:hover { color: var(--sg-fg); border-color: var(--sg-accent); }
+.stormgrid-overlayctrl__btn--active {
+  background: var(--sg-accent);
+  border-color: var(--sg-accent);
+  color: #fff;
+}
+.stormgrid-overlayctrl__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.stormgrid-overlayctrl__win {
+  font-size: 11px;
+  color: var(--sg-muted);
+}
+.stormgrid-overlayctrl__hint {
+  font-size: 11px;
+  color: var(--sg-muted);
+  font-style: italic;
+}
+
+.stormgrid-overlaylegendwrap-outer { margin: 16px 0; }
+.stormgrid-overlaylegendwrap {
+  background: var(--sg-card-bg);
+  border: 1px solid var(--sg-line);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.stormgrid-overlaylegend__head-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.stormgrid-overlaylegend__head { margin: 0; font-size: 14px; font-weight: 700; }
+.stormgrid-overlaylegend__meta { font-size: 11px; color: var(--sg-muted); }
+.stormgrid-overlaylegend__synth {
+  background: var(--sg-warn-bg);
+  color: var(--sg-warn-fg);
+  border: 1px solid var(--sg-warn-line);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.stormgrid-overlaylegend__synth code {
+  background: rgba(0,0,0,0.06);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+.stormgrid-overlaylegend__facts {
+  margin: 0 0 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.stormgrid-overlaylegend__facts div {
+  background: #fbfcfd;
+  border: 1px solid var(--sg-line);
+  border-radius: 5px;
+  padding: 6px 8px;
+}
+.stormgrid-overlaylegend__facts dt {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--sg-muted);
+  text-transform: uppercase;
+}
+.stormgrid-overlaylegend__facts dd {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--sg-fg);
+}
+.stormgrid-overlaylegend__gap {
+  color: #b32020;
+  font-weight: 700;
+}
+.stormgrid-overlaylegend__bar {
+  display: flex;
+  height: 28px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--sg-line);
+  margin: 4px 0 8px;
+}
+.stormgrid-overlaylegend__bar-stop {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+.stormgrid-overlaylegend__hover {
+  background: var(--sg-manual-bg);
+  border: 1px solid var(--sg-manual-ln);
+  color: var(--sg-manual-fg);
+  padding: 6px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.stormgrid-overlaylegend__hover small { color: var(--sg-muted); margin-left: 6px; }
+.stormgrid-overlaylegend__safety {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--sg-muted);
+  font-style: italic;
+}
+.stormgrid-overlaylegend__empty {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--sg-muted);
+}
+.stormgrid-overlaylegend__empty--error { color: #b32020; }
+
+@media (max-width: 720px) {
+  .stormgrid-overlaylegend__facts { grid-template-columns: 1fr; }
+}
