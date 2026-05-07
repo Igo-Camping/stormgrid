@@ -29,6 +29,12 @@ export function buildEventFootprint({
   climatologyData,
   archivedEntriesById,
   activeArchivedEventId,
+  // Phase 14 — calibration context
+  calibrationMode,
+  calibrationPairings,
+  calibrationSummary,
+  calibrationFactors,
+  gaugeData,
 }) {
   const ok   = !!(rainfallResult && rainfallResult.ok && rainfallResult.data);
   const data = ok ? rainfallResult.data : null;
@@ -43,21 +49,35 @@ export function buildEventFootprint({
 
   // Compact catchment row for export. Includes geometry-free metadata
   // so JSON consumers don't depend on the catchments GeoJSON file.
-  const catchments = ranking.map((r, i) => ({
-    rank: i + 1,
-    catchment_id:   r.id,
-    catchment_name: r.id, // placeholder — no separate name field in current dataset
-    critical_duration: durationKey,
-    max_total_mm:           r.max_total_mm,
-    coverage_pct:           r.coverage_pct,
-    confidence:             r.confidence,
-    critical_window_start:  r.window_start,
-    critical_window_end:    r.window_end,
-    coefficient_of_variation:    r.cv,
-    uniformity_index:            uniformityFromCv(r.cv),
-    wet_core_ratio:              r.wet_core,
-    spatial_concentration_class: r.spatial_class,
-  }));
+  // Phase 14 — when calibration is active, raw and calibrated max_total_mm
+  // are exposed side-by-side so the operation is reversible.
+  const catchments = ranking.map((r, i) => {
+    const cRow  = data && data.catchments ? data.catchments[r.id] : null;
+    const dsRow = cRow && cRow.duration_stats ? cRow.duration_stats[durationKey] : null;
+    const cFactor = (cRow && typeof cRow.calibration_factor === 'number') ? cRow.calibration_factor : null;
+    const rawMax = dsRow && typeof dsRow.raw_max_total_mm === 'number' ? dsRow.raw_max_total_mm : null;
+    return {
+      rank: i + 1,
+      catchment_id:   r.id,
+      catchment_name: r.id,
+      critical_duration: durationKey,
+      // When calibration is active, max_total_mm is the calibrated value
+      // and raw_max_total_mm is preserved. When raw mode, these are equal.
+      max_total_mm:           r.max_total_mm,
+      raw_max_total_mm:       rawMax !== null ? rawMax : r.max_total_mm,
+      calibrated_max_total_mm: (calibrationMode === 'calibrated' && rawMax !== null) ? r.max_total_mm : null,
+      calibration_factor:     cFactor,
+      coverage_pct:           r.coverage_pct,
+      confidence:             r.confidence,
+      raw_confidence:         (cRow && typeof cRow.raw_confidence === 'string') ? cRow.raw_confidence : r.confidence,
+      critical_window_start:  r.window_start,
+      critical_window_end:    r.window_end,
+      coefficient_of_variation:    r.cv,
+      uniformity_index:            uniformityFromCv(r.cv),
+      wet_core_ratio:              r.wet_core,
+      spatial_concentration_class: r.spatial_class,
+    };
+  });
 
   // Optional point-IFD context block. Always carries a methodology
   // safeguard so downstream consumers cannot mistake it for an AEP
@@ -215,8 +235,53 @@ export function buildEventFootprint({
       state, selectedCatchmentId,
       archiveIndex, climatologyData, archivedEntriesById, activeArchivedEventId,
     }),
+    calibration:         buildCalibrationBlock({
+      mode: calibrationMode || 'raw',
+      gaugeData, calibrationPairings, calibrationSummary, calibrationFactors,
+      selectedCatchmentId,
+    }),
     catchment_count: catchments.length,
     catchments,
+  };
+}
+
+/* Phase 14 — calibration export block.
+   Captures: mode (raw|calibrated), gauge dataset metadata, the full
+   pairing list, summary statistics, the per-selected-catchment factor,
+   and a methodology safeguard. The block is always present so a
+   downstream consumer can confirm whether the snapshot was raw or
+   calibrated. */
+function buildCalibrationBlock({
+  mode, gaugeData, calibrationPairings, calibrationSummary, calibrationFactors,
+  selectedCatchmentId,
+}) {
+  const selectedFactor = (calibrationFactors && selectedCatchmentId)
+    ? calibrationFactors.factor_by_catchment[selectedCatchmentId]
+    : null;
+  const selectedDistance = (calibrationFactors && selectedCatchmentId)
+    ? calibrationFactors.nearest_pair_distance_km_by_catchment[selectedCatchmentId]
+    : null;
+  return {
+    schema_version: 'stormgrid.calibration.v1',
+    mode:                mode || 'raw',
+    method:              calibrationFactors && calibrationFactors.method ? calibrationFactors.method : 'multiplicative_bias_idw',
+    reversible:          true,
+    gauge_dataset: gaugeData ? {
+      schema_version:   gaugeData.schema_version,
+      generated_at:     gaugeData.generated_at,
+      is_authoritative: !!gaugeData.is_authoritative,
+      is_synthetic:     !!gaugeData.is_synthetic,
+      station_count:    Array.isArray(gaugeData.stations) ? gaugeData.stations.length : 0,
+      windows:          gaugeData.windows || null,
+      warning:          gaugeData.warning || null,
+    } : null,
+    summary:             calibrationSummary || null,
+    pairings:            (calibrationPairings && Array.isArray(calibrationPairings.pairs))
+                          ? calibrationPairings.pairs
+                          : [],
+    selected_catchment_factor:        selectedFactor,
+    selected_catchment_nearest_gauge_km: selectedDistance,
+    methodology_note:    'Calibration is a transparent multiplicative bias correction with inverse-distance weighting from per-gauge bias ratios. Raw radar values are preserved as raw_total_mm so the operation is reversible. Calibration is NOT an AEP classification, NOT a return-period assignment, and NOT a formal exceedance assertion. Calibration-aware confidence is downgraded one tier when the nearest gauge is more than 5 km from the catchment centroid.',
   };
 }
 

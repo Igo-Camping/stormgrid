@@ -1,0 +1,49 @@
+{
+  "schema_version": "stormgrid.gauge_observations.v1",
+  "generated_at": "2026-05-07T00:00:00Z",
+  "is_authoritative": false,
+  "is_synthetic": true,
+  "warning": "SYNTHETIC PLACEHOLDER VALUES. These gauge totals are illustrative — they were authored to exercise the calibration framework, NOT derived from BOM/MHL feeds. Replace via scripts/build_gauge_observations.py before any operational use. Calibrated rainfall built on synthetic gauges is meaningless for engineering decisions.",
+  "replace_with_real_data": true,
+  "source_note": "Real implementation should pull station daily/hourly totals from BOM Climate Data Online, MHL/WISKI KiWIS, or equivalent. Stations should match the reference set used by data/catchment_ifd_centroid.json so spatial pairing remains stable.",
+  "method": "multiplicative_bias_inverse_distance_weighted",
+  "windows": ["24h", "7d", "30d"],
+  "stations": [
+    {
+      "station_id": "bom-048190",
+      "station_name": "Cromer",
+      "lonlat": [151.2917, -33.7417],
+      "totals_mm": { "24h": 0.86, "7d": 9.93, "30d": 23.69 },
+      "synthetic_bias_factor_used": 1.10
+    },
+    {
+      "station_id": "bom-066059",
+      "station_name": "TERREY HILLS AWS",
+      "lonlat": [151.2253, -33.6908],
+      "totals_mm": { "24h": 0.72, "7d": 8.31, "30d": 19.82 },
+      "synthetic_bias_factor_used": 0.92
+    },
+    {
+      "station_id": "bom-066142",
+      "station_name": "DUFFYS FOREST (NAMBA RD)",
+      "lonlat": [151.1818, -33.6761],
+      "totals_mm": { "24h": 1.01, "7d": 11.74, "30d": 28.00 },
+      "synthetic_bias_factor_used": 1.30
+    },
+    {
+      "station_id": "bom-066120",
+      "station_name": "GORDON GOLF CLUB",
+      "lonlat": [151.1463, -33.7619],
+      "totals_mm": { "24h": 0.78, "7d": 9.03, "30d": 21.54 },
+      "synthetic_bias_factor_used": 1.00
+    },
+    {
+      "station_id": "bom-066126",
+      "station_name": "COLLAROY (LONG REEF GOLF CLUB)",
+      "lonlat": [151.3077, -33.7407],
+      "totals_mm": { "24h": 0.90, "7d": 10.38, "30d": 24.77 },
+      "synthetic_bias_factor_used": 1.15
+    }
+  ],
+  "methodology_note": "Each station's totals_mm should reflect the gauge-observed accumulation over the same window endpoints used by data/catchment_rainfall_<key>.json. Pairings are recomputed in-browser at load time so the calibration adjusts as windows or radar inputs change. Calibration is multiplicative (radar * bias) and reversible (raw_total_mm always retained). NOT an AEP classification, NOT a return-period assignment, NOT a formal exceedance assertion."
+}

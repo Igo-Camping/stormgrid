@@ -2196,3 +2196,170 @@ html, body {
   .stormgrid-history__bands { grid-template-columns: repeat(3, 1fr); }
   .stormgrid-history__keystats { grid-template-columns: 1fr; }
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+   Phase 14 — calibration mode selector + summary panel
+   ────────────────────────────────────────────────────────────────────── */
+
+.stormgrid-calibmodewrap-outer { margin: 6px 0 12px; }
+.stormgrid-calibmode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.stormgrid-calibmode__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--sg-muted);
+  text-transform: uppercase;
+}
+.stormgrid-calibmode__btn {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border: 1px solid var(--sg-line);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--sg-muted);
+  cursor: pointer;
+}
+.stormgrid-calibmode__btn:hover { color: var(--sg-fg); border-color: var(--sg-accent); }
+.stormgrid-calibmode__btn--active {
+  background: var(--sg-accent);
+  border-color: var(--sg-accent);
+  color: #fff;
+}
+.stormgrid-calibmode__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.stormgrid-calibwrap-outer { margin: 16px 0; }
+.stormgrid-calibwrap {
+  background: var(--sg-card-bg);
+  border: 1px solid var(--sg-line);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.stormgrid-calib__head-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.stormgrid-calib__head {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.stormgrid-calib__meta {
+  font-size: 11px;
+  color: var(--sg-muted);
+}
+.stormgrid-calib__synthbanner {
+  background: var(--sg-warn-bg);
+  color: var(--sg-warn-fg);
+  border: 1px solid var(--sg-warn-line);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.stormgrid-calib__synthbanner code {
+  background: rgba(0,0,0,0.06);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+.stormgrid-calib__summary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0 0 8px;
+}
+.stormgrid-calib__summary div {
+  background: #fbfcfd;
+  border: 1px solid var(--sg-line);
+  border-radius: 5px;
+  padding: 6px 8px;
+  text-align: center;
+}
+.stormgrid-calib__summary dt {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--sg-muted);
+  text-transform: uppercase;
+}
+.stormgrid-calib__summary dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sg-fg);
+}
+.stormgrid-calib__selected {
+  font-size: 12px;
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  background: var(--sg-manual-bg);
+  border: 1px solid var(--sg-manual-ln);
+  color: var(--sg-manual-fg);
+  border-radius: 5px;
+}
+.stormgrid-calib__selected code {
+  background: rgba(255,255,255,0.6);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.stormgrid-calib__pairs {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.stormgrid-calib__pairs th, .stormgrid-calib__pairs td {
+  text-align: left;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--sg-line);
+  vertical-align: middle;
+}
+.stormgrid-calib__pairs th {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sg-muted);
+}
+.stormgrid-calib__pairs td.num, .stormgrid-calib__pairs th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.stormgrid-calib__pairs small { color: var(--sg-muted); font-size: 10px; }
+.stormgrid-calib__pairs-invalid { opacity: 0.55; }
+.stormgrid-calib__methodpill {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--sg-default-bg);
+  color: var(--sg-default-fg);
+  text-transform: uppercase;
+}
+.stormgrid-calib__safety {
+  margin: 12px 0 0;
+  font-size: 11px;
+  color: var(--sg-muted);
+  font-style: italic;
+}
+.stormgrid-calib__empty {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--sg-muted);
+}
+.stormgrid-calib__empty--error { color: #b32020; }
+
+@media (max-width: 720px) {
+  .stormgrid-calib__summary { grid-template-columns: repeat(2, 1fr); }
+}

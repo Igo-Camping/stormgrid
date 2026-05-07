@@ -49,6 +49,13 @@ import {
   renderEventArchivePanel, renderCatchmentHistoryPanel,
   comparablePastEvents, pickCatchmentClimatology,
 } from './stormgridEventArchive.js';
+import {
+  loadGaugeObservations,
+  computePairings, summarisePairings, computeCalibrationFactors,
+  applyCalibration,
+  renderCalibrationModeSelector, renderCalibrationPanel,
+  CALIBRATION_METHODOLOGY_NOTE,
+} from './stormgridCalibration.js';
 
 const NS = 'stormgrid';
 // Selector lists the three precomputed windows; "latest" is exposed as
@@ -79,6 +86,10 @@ export function mountStormgridShell(host, options = {}) {
   let climatologyResult = null;        // { ok, data: climatologyJson, error }
   const archivedEntries = {};          // event_id → loaded event.json (cached)
   let activeArchivedEventId = null;
+  // Phase 14 — calibration
+  let gaugeResult = null;              // { ok, data: gauge_observations.json, error }
+  let calibrationMode = 'raw';         // 'raw' | 'calibrated'
+  let lastRenderCalib = null;          // computed during render(); reused by onExportClick + ranking selection
   // Ranking-panel local state — kept here rather than in stormgridState
   // because it's a presentation concern, not a workflow primitive.
   let rankingFilters = { minMm: null, confidence: 'any' };
@@ -109,6 +120,11 @@ export function mountStormgridShell(host, options = {}) {
   const mapModeHost = document.createElement('div');
   mapModeHost.className = `${NS}-mapmodewrap`;
   host.appendChild(mapModeHost);
+
+  // Phase 14 — calibration mode selector (Raw / Calibrated)
+  const calibModeHost = document.createElement('div');
+  calibModeHost.className = `${NS}-calibmodewrap-outer`;
+  host.appendChild(calibModeHost);
 
   const header = document.createElement('header');
   header.className = `${NS}-header`;
@@ -154,6 +170,11 @@ export function mountStormgridShell(host, options = {}) {
   opCtxHost.className = `${NS}-opctxwrap-outer`;
   host.appendChild(opCtxHost);
 
+  // Phase 14 — Calibration summary panel
+  const calibPanelHost = document.createElement('section');
+  calibPanelHost.className = `${NS}-calibwrap-outer`;
+  host.appendChild(calibPanelHost);
+
   // Phase 13 — Event archive + Catchment history. Archive lives directly
   // below the operational context panel; catchment history sits beneath
   // it so the per-catchment counters stay near the per-catchment context.
@@ -187,7 +208,37 @@ export function mountStormgridShell(host, options = {}) {
   // ── Render ────────────────────────────────────────────────────────────
   function render() {
     const selected = describeSelected(state);
-    const data = state.rainfallData;
+
+    // Phase 14 — compute calibration once per render. The raw rainfall
+    // result is always preserved; calibrated mode swaps a calibrated
+    // copy in for downstream renderers/exports while raw_total_mm
+    // stays attached so the operation is reversible.
+    const rawData = state.rainfallData;
+    const gaugeOk = !!(gaugeResult && gaugeResult.ok && gaugeResult.data);
+    const geojson = mapHandle && mapHandle.geojson;
+    let pairings = null;
+    let calibSummary = null;
+    let calibFactors = null;
+    let calibratedData = null;
+    if (rawData && gaugeOk && geojson) {
+      pairings = computePairings({
+        gaugeData:    gaugeResult.data,
+        rainfallData: rawData,
+        geojson,
+        windowKey:    state.selectedWindow,
+      });
+      calibSummary = summarisePairings(pairings);
+      calibFactors = computeCalibrationFactors({ pairings, geojson });
+      calibratedData = applyCalibration({ rainfallData: rawData, calibrationFactors: calibFactors });
+    }
+    const data = (calibrationMode === 'calibrated' && calibratedData) ? calibratedData : rawData;
+    // Effective rainfallResult shown to renderers that read from the
+    // result wrapper (timestamps, frame log etc.). When calibrated,
+    // they see calibrated totals but the live timestamps still apply.
+    const effectiveRainfallResult = (calibrationMode === 'calibrated' && calibratedData && rainfallResult && rainfallResult.ok)
+      ? { ok: true, data: calibratedData, error: null }
+      : rainfallResult;
+
     const catchmentRow = data && state.selectedCatchmentId
       ? getCatchmentRow(data, state.selectedCatchmentId)
       : null;
@@ -212,7 +263,12 @@ export function mountStormgridShell(host, options = {}) {
     grid.innerHTML = '';
     cards.forEach((card) => grid.appendChild(renderCard(card, onEdit)));
 
-    renderLastBuiltStrip(lastBuiltHost, { rainfallResult });
+    renderLastBuiltStrip(lastBuiltHost, { rainfallResult: effectiveRainfallResult });
+    renderCalibrationModeSelector(calibModeHost, {
+      mode: calibrationMode,
+      gaugeOk,
+      onChange: onCalibrationModeChange,
+    });
     renderWindowSelector(windowSelHost, {
       windows: SELECTOR_WINDOWS,
       selectedKey: state.selectedWindow,
@@ -229,8 +285,18 @@ export function mountStormgridShell(host, options = {}) {
       selectedKey: state.mapColourMode,
       onChange: onMapColourModeChange,
     });
+    renderCalibrationPanel(calibPanelHost, {
+      mode: calibrationMode,
+      gaugeData:   gaugeResult && gaugeResult.ok ? gaugeResult.data : null,
+      gaugeError:  gaugeResult && !gaugeResult.ok ? gaugeResult.error : null,
+      pairings,
+      summary:     calibSummary,
+      factors:     calibFactors,
+      selectedCatchmentId: state.selectedCatchmentId,
+    });
+
     renderAvailabilityPanel(availHost, {
-      rainfallResult,
+      rainfallResult: effectiveRainfallResult,
       selected,
       catchmentRow,
       analysisRun: !!state.analysisRun,
@@ -323,7 +389,9 @@ export function mountStormgridShell(host, options = {}) {
 
     renderEventSummaryPanel(eventHost, {
       footprint: buildEventFootprint({
-        state, rainfallResult, rankingFilters, rankingSort,
+        state,
+        rainfallResult: effectiveRainfallResult,
+        rankingFilters, rankingSort,
         selectedCatchmentId: state.selectedCatchmentId,
         selectedCatchmentFeature: state.selectedCatchmentFeature,
         ifdResult, arfResult,
@@ -331,15 +399,20 @@ export function mountStormgridShell(host, options = {}) {
         climatologyData: climData,
         archivedEntriesById: archivedEntries,
         activeArchivedEventId,
+        calibrationMode,
+        calibrationPairings: pairings,
+        calibrationSummary:  calibSummary,
+        calibrationFactors:  calibFactors,
+        gaugeData:           gaugeResult && gaugeResult.ok ? gaugeResult.data : null,
       }),
       onExport: onExportClick,
       lastExportNote,
     });
     renderFrameLogPanel(frameLogHost, {
-      data: rainfallResult && rainfallResult.ok ? rainfallResult.data : null,
+      data: effectiveRainfallResult && effectiveRainfallResult.ok ? effectiveRainfallResult.data : null,
     });
     renderRankingPanel(rankingHost, {
-      data: rainfallResult && rainfallResult.ok ? rainfallResult.data : null,
+      data: effectiveRainfallResult && effectiveRainfallResult.ok ? effectiveRainfallResult.data : null,
       durationKey: state.selectedDuration,
       selectedCatchmentId: state.selectedCatchmentId,
       filters: rankingFilters,
@@ -355,6 +428,14 @@ export function mountStormgridShell(host, options = {}) {
         mode: state.mapColourMode,
       });
     }
+
+    // Stash the live calibration context so onExportClick can re-use
+    // it without recomputing pairings on click.
+    lastRenderCalib = {
+      pairings, summary: calibSummary, factors: calibFactors,
+      gaugeData: gaugeResult && gaugeResult.ok ? gaugeResult.data : null,
+      effectiveRainfallResult,
+    };
 
     const readiness = validateRunReadiness(state);
     runBtn.disabled = !readiness.ready;
@@ -384,8 +465,10 @@ export function mountStormgridShell(host, options = {}) {
   }
 
   function onExportClick(kind) {
+    const calib = lastRenderCalib || {};
+    const exportRainfallResult = calib.effectiveRainfallResult || rainfallResult;
     const fp = buildEventFootprint({
-      state, rainfallResult, rankingFilters, rankingSort,
+      state, rainfallResult: exportRainfallResult, rankingFilters, rankingSort,
       selectedCatchmentId: state.selectedCatchmentId,
       selectedCatchmentFeature: state.selectedCatchmentFeature,
       ifdResult, arfResult,
@@ -393,6 +476,11 @@ export function mountStormgridShell(host, options = {}) {
       climatologyData: climatologyResult && climatologyResult.ok ? climatologyResult.data : null,
       archivedEntriesById: archivedEntries,
       activeArchivedEventId,
+      calibrationMode,
+      calibrationPairings: calib.pairings,
+      calibrationSummary:  calib.summary,
+      calibrationFactors:  calib.factors,
+      gaugeData:           calib.gaugeData,
     });
     if (!fp || !fp.catchments || fp.catchments.length === 0) {
       lastExportNote = 'Nothing to export — no catchments in this view.';
@@ -695,6 +783,16 @@ export function mountStormgridShell(host, options = {}) {
     }
   }
 
+  /* ── Calibration mode (Phase 14) ───────────────────────────────────── */
+
+  function onCalibrationModeChange(newMode) {
+    if (newMode !== 'raw' && newMode !== 'calibrated') return;
+    if (newMode === calibrationMode) return;
+    if (newMode === 'calibrated' && !(gaugeResult && gaugeResult.ok)) return;
+    calibrationMode = newMode;
+    render();
+  }
+
   /* ── Event archive (Phase 13) ──────────────────────────────────────── */
 
   async function onArchiveRestore(eventId, archivePath) {
@@ -826,6 +924,15 @@ export function mountStormgridShell(host, options = {}) {
 
   loadCatchmentClimatology().then((res) => {
     climatologyResult = res;
+    render();
+  });
+
+  // Phase 14 — gauge observations for calibration. Loaded once; pairings
+  // and per-catchment factors are recomputed on every render based on the
+  // active rainfall_data + window so they react to window switches and
+  // archive restores automatically.
+  loadGaugeObservations().then((res) => {
+    gaugeResult = res;
     render();
   });
 
