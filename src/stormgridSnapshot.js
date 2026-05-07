@@ -204,8 +204,29 @@ export function buildEventFootprint({
     arf_engine:      arfEngine,
     comparison_summary: comparisonSummary,
     event_interpretation: eventInterpretation,
+    operational_context: buildOperationalContextBlock(state),
     catchment_count: catchments.length,
     catchments,
+  };
+}
+
+/* Phase 12 — operational_context export block.
+   Mirrors state.operationalContext but stamps the schema version + a
+   methodology safeguard so a downstream consumer cannot mistake the
+   detected event window for an AEP / return-period / formal-exceedance
+   classification. Returns null when no address has been resolved yet. */
+function buildOperationalContextBlock(state) {
+  const op = state && state.operationalContext;
+  if (!op || !op.address) return null;
+  return {
+    schema_version: 'stormgrid.operational_context.v1',
+    address:        op.address,
+    catchment:      op.catchment,
+    ifd_reference:  op.ifd,
+    event_window:   op.eventWindow,
+    nearby_gauges:  Array.isArray(op.nearbyGauges) ? op.nearbyGauges.slice() : [],
+    overrides:      Array.isArray(op.overrides)   ? op.overrides.slice()    : [],
+    methodology_note: 'Operational context is hydrological background only. Address geocoding is non-authoritative; auto-selected catchment uses raster-derived polygons (is_authoritative: false); detected event window is the rolling-max slice of the chosen accumulation window. Not an AEP classification, not a return period, not a formal exceedance assertion.',
   };
 }
 

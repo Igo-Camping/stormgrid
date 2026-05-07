@@ -1665,3 +1665,260 @@ html, body {
   font-size: 12px;
   color: var(--sg-muted);
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+   Phase 12 — address-first operational workflow
+   ────────────────────────────────────────────────────────────────────── */
+
+.stormgrid-addresswrap-outer { margin: 0 0 16px; }
+
+.stormgrid-address {
+  background: var(--sg-card-bg);
+  border: 1px solid var(--sg-line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+.stormgrid-address__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sg-muted);
+}
+.stormgrid-address__inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+.stormgrid-address__input {
+  flex: 1;
+  font-size: 14px;
+  padding: 8px 32px 8px 10px;
+  border: 1px solid var(--sg-line);
+  border-radius: 6px;
+  outline: none;
+  background: #fff;
+}
+.stormgrid-address__input:focus {
+  border-color: var(--sg-accent);
+  box-shadow: 0 0 0 2px rgba(0, 88, 91, 0.18);
+}
+.stormgrid-address__clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--sg-muted);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.stormgrid-address__clear:hover { background: rgba(0,0,0,0.06); color: var(--sg-fg); }
+
+.stormgrid-address__hits {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 14px;
+  right: 14px;
+  background: #fff;
+  border: 1px solid var(--sg-line);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  z-index: 1100;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.stormgrid-address__hits--open { display: block; }
+.stormgrid-address__hit {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--sg-line);
+  font: inherit;
+  color: var(--sg-fg);
+}
+.stormgrid-address__hit:last-child { border-bottom: 0; }
+.stormgrid-address__hit:hover, .stormgrid-address__hit:focus {
+  background: #f0f6f7;
+}
+.stormgrid-address__hit-main {
+  display: block;
+  font-weight: 600;
+  font-size: 13px;
+}
+.stormgrid-address__hit-sub {
+  display: block;
+  font-size: 11px;
+  color: var(--sg-muted);
+  margin-top: 2px;
+}
+.stormgrid-address__status {
+  margin: 0;
+  font-size: 11px;
+  color: var(--sg-muted);
+  min-height: 14px;
+}
+.stormgrid-address__status--busy { color: var(--sg-accent); }
+.stormgrid-address__status--error { color: #b32020; }
+
+/* ── Operational context panel ──────────────────────────────────────── */
+
+.stormgrid-opctxwrap-outer { margin: 16px 0; }
+.stormgrid-opctxwrap {
+  background: var(--sg-card-bg);
+  border: 1px solid var(--sg-line);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.stormgrid-opctx__head-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.stormgrid-opctx__head {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.stormgrid-opctx__meta {
+  font-size: 11px;
+  color: var(--sg-muted);
+}
+.stormgrid-opctx__empty {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--sg-muted);
+}
+.stormgrid-opctx__grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.stormgrid-opctx__row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 14px;
+  padding: 10px 0;
+  border-top: 1px solid var(--sg-line);
+}
+.stormgrid-opctx__row:first-of-type { border-top: 0; padding-top: 4px; }
+.stormgrid-opctx__dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sg-fg);
+  letter-spacing: 0.02em;
+}
+.stormgrid-opctx__dd { margin: 0; }
+.stormgrid-opctx__value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sg-fg);
+  word-wrap: break-word;
+}
+.stormgrid-opctx__sub {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--sg-muted);
+}
+.stormgrid-opctx__reason {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--sg-muted);
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.stormgrid-opctx__conf {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--sg-default-bg);
+  color: var(--sg-default-fg);
+}
+.stormgrid-opctx__conf--high     { background: #d6f0e3; color: #1e6b43; }
+.stormgrid-opctx__conf--medium   { background: #fbeed1; color: #7a5a0f; }
+.stormgrid-opctx__conf--low      { background: #f8d8d2; color: #7a2018; }
+.stormgrid-opctx__conf--manual   { background: var(--sg-manual-bg); color: var(--sg-manual-fg); border: 1px solid var(--sg-manual-ln); }
+.stormgrid-opctx__conf--resolved { background: #e2eef3; color: #155e75; }
+.stormgrid-opctx__conf--derived  { background: #eef0f3; color: #3a4250; }
+
+.stormgrid-opctx__auto {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.stormgrid-opctx__auto[data-auto="true"]  { background: var(--sg-default-bg); color: var(--sg-default-fg); }
+.stormgrid-opctx__auto[data-auto="false"] { background: var(--sg-manual-bg);  color: var(--sg-manual-fg); border: 1px solid var(--sg-manual-ln); }
+
+.stormgrid-opctx__actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.stormgrid-opctx__btn {
+  font-size: 11px;
+  padding: 4px 9px;
+  border: 1px solid var(--sg-line);
+  background: #fff;
+  color: var(--sg-fg);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.stormgrid-opctx__btn:hover {
+  border-color: var(--sg-accent);
+  color: var(--sg-accent);
+}
+.stormgrid-opctx__btn--ghost {
+  background: transparent;
+  color: var(--sg-muted);
+}
+.stormgrid-opctx__pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  background: var(--sg-default-bg);
+  color: var(--sg-default-fg);
+  border-radius: 3px;
+  margin-left: 4px;
+}
+.stormgrid-opctx__safety {
+  margin: 12px 0 0;
+  font-size: 11px;
+  color: var(--sg-muted);
+  font-style: italic;
+}
+
+@media (max-width: 720px) {
+  .stormgrid-opctx__row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}

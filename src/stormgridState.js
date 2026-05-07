@@ -61,7 +61,81 @@ export function createStormgridState() {
       };
       return acc;
     }, {}),
+    operationalContext: createOperationalContext(),
   };
+}
+
+/* Phase 12 — address-first operational workflow.
+   `operationalContext` is a separate block from the seven design cards
+   so the existing review model is untouched. Every auto-selected field
+   carries `auto`, `confidence`, `reason`; an override flips `auto` to
+   false and pushes an entry onto `overrides` for the export audit log.
+*/
+export function createOperationalContext() {
+  return {
+    address: null,        // { query, display_name, short_label, lat, lon, geocoder, importance, type, category, address }
+    catchment: null,      // { id, auto, confidence, reason, distance_km, nearest_id }
+    ifd:       null,      // { reference_station_id, reference_station_name, distance_km, lonlat, auto, confidence, reason }
+    eventWindow: null,    // see detectEventWindow descriptor; plus { auto, override }
+    nearbyGauges: [],     // [{ station_id, station_name, lonlat, distance_km }]
+    overrides: [],        // [{ field, from, to, ts }]
+  };
+}
+
+export function clearOperationalContext(state) {
+  state.operationalContext = createOperationalContext();
+  return state;
+}
+
+export function setOperationalAddress(state, addr) {
+  state.operationalContext.address = addr || null;
+  return state;
+}
+
+export function setOperationalCatchment(state, payload) {
+  state.operationalContext.catchment = payload || null;
+  return state;
+}
+
+export function setOperationalIfd(state, payload) {
+  state.operationalContext.ifd = payload || null;
+  return state;
+}
+
+export function setOperationalEventWindow(state, payload) {
+  state.operationalContext.eventWindow = payload || null;
+  return state;
+}
+
+export function setOperationalNearbyGauges(state, list) {
+  state.operationalContext.nearbyGauges = Array.isArray(list) ? list : [];
+  return state;
+}
+
+/** Mark a specific operational field as manually overridden, capturing
+    a before/after snapshot for the export audit log. */
+export function recordOperationalOverride(state, field, from, to) {
+  if (!state.operationalContext) state.operationalContext = createOperationalContext();
+  state.operationalContext.overrides.push({
+    field,
+    from,
+    to,
+    ts: new Date().toISOString(),
+  });
+  // Flag the affected sub-block as auto: false where applicable.
+  if (field === 'catchment' && state.operationalContext.catchment) {
+    state.operationalContext.catchment.auto = false;
+    state.operationalContext.catchment.override = true;
+  }
+  if (field === 'ifd' && state.operationalContext.ifd) {
+    state.operationalContext.ifd.auto = false;
+    state.operationalContext.ifd.override = true;
+  }
+  if (field === 'eventWindow' && state.operationalContext.eventWindow) {
+    state.operationalContext.eventWindow.auto = false;
+    state.operationalContext.eventWindow.override = true;
+  }
+  return state;
 }
 
 export function recordAnalysisRun(state, when = new Date()) {

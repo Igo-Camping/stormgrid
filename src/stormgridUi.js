@@ -13,7 +13,14 @@ import {
   setSelectedCatchment, setRainfallData, setSelectedWindow, setSelectedDuration,
   setMapColourMode, setIfdDisplayMode,
   recordAnalysisRun, clearAnalysisRun,
+  setOperationalAddress, setOperationalCatchment, setOperationalIfd,
+  setOperationalEventWindow, setOperationalNearbyGauges,
+  recordOperationalOverride, clearOperationalContext,
 } from './stormgridState.js';
+import { renderAddressSearchBar } from './stormgridAddressSearch.js';
+import { findCatchmentForPoint, nearbyReferenceStations } from './stormgridGeo.js';
+import { detectEventWindow } from './stormgridEventWindowDetection.js';
+import { renderOperationalContextPanel } from './stormgridOperationalContextPanel.js';
 import { buildDefaults }            from './stormgridDefaults.js';
 import { buildReviewModel }         from './stormgridReviewModel.js';
 import { validateRunReadiness }     from './stormgridValidation.js';
@@ -71,6 +78,11 @@ export function mountStormgridShell(host, options = {}) {
   host.innerHTML = '';
 
   // ── Layout ────────────────────────────────────────────────────────────
+  // Address-first search bar (Phase 12) — sits above the controls strip.
+  const addressHost = document.createElement('div');
+  addressHost.className = `${NS}-addresswrap-outer`;
+  host.appendChild(addressHost);
+
   const controlsStrip = document.createElement('div');
   controlsStrip.className = `${NS}-controls`;
   const lastBuiltHost = document.createElement('div');
@@ -124,6 +136,12 @@ export function mountStormgridShell(host, options = {}) {
   const ifdHost = document.createElement('section');
   ifdHost.className = `${NS}-ifdwrap-outer`;
   host.appendChild(ifdHost);
+
+  // Phase 12 — Operational context panel (below the IFD comparison panel,
+  // above the existing event-summary / exports).
+  const opCtxHost = document.createElement('section');
+  opCtxHost.className = `${NS}-opctxwrap-outer`;
+  host.appendChild(opCtxHost);
 
   const eventHost = document.createElement('section');
   eventHost.className = `${NS}-eventwrap`;
@@ -222,6 +240,32 @@ export function mountStormgridShell(host, options = {}) {
       catchmentAreaKm2,
       ifdDisplayMode: state.ifdDisplayMode,
       onIfdModeChange,
+    });
+
+    // Address bar (always rendered; preserves text/focus across re-renders).
+    renderAddressSearchBar(addressHost, {
+      current: state.operationalContext && state.operationalContext.address,
+      onResolve: onAddressResolve,
+      onClear:   onAddressClear,
+    });
+
+    // Operational context panel.
+    const op = state.operationalContext;
+    const opReady = !!(op && op.address);
+    const catchmentOptions = (mapHandle && mapHandle.geojson)
+      ? (mapHandle.geojson.features || [])
+          .map((f) => f.properties && f.properties.catchment_id)
+          .filter(Boolean)
+      : [];
+    renderOperationalContextPanel(opCtxHost, {
+      context: op,
+      ready: opReady,
+      catchmentOptions,
+      durationOptions: ALL_DURATION_KEYS,
+      onOverrideCatchment: onOpCatchmentOverride,
+      onResetCatchment:    onOpCatchmentReset,
+      onOverrideEventWindow: onOpEventWindowOverride,
+      onResetEventWindow:    onOpEventWindowReset,
     });
 
     renderEventSummaryPanel(eventHost, {
@@ -356,6 +400,236 @@ export function mountStormgridShell(host, options = {}) {
         }
       });
     } else {
+      render();
+    }
+  }
+
+  /* ── Address-first flow (Phase 12) ─────────────────────────────────── */
+
+  function onAddressResolve(hit) {
+    if (!hit) return;
+    setOperationalAddress(state, {
+      query:        hit.short_label || hit.display_name,
+      display_name: hit.display_name,
+      short_label:  hit.short_label,
+      lat:          hit.lat,
+      lon:          hit.lon,
+      geocoder:     hit.geocoder,
+      importance:   hit.importance,
+      type:         hit.type,
+      category:     hit.category,
+      address:      hit.address,
+      resolved_at:  new Date().toISOString(),
+    });
+
+    // 1) Catchment auto-select.
+    const gj = mapHandle && mapHandle.geojson;
+    const lookup = gj
+      ? findCatchmentForPoint(hit.lon, hit.lat, gj)
+      : { feature: null, id: null, confidence: 'unknown', reason: 'Catchment GeoJSON not yet loaded.', distance_km: null, nearestId: null };
+
+    setOperationalCatchment(state, {
+      id:           lookup.id,
+      auto:         true,
+      confidence:   lookup.confidence,
+      reason:       lookup.reason,
+      distance_km:  lookup.distance_km,
+      nearest_id:   lookup.nearestId,
+    });
+
+    if (lookup.feature && lookup.id) {
+      setSelectedCatchment(state, lookup.id, lookup.feature);
+      clearAnalysisRun(state);
+      // Mirror the polygon click visually so confidence styling/selection updates.
+      if (mapHandle && mapHandle.layer) {
+        mapHandle.layer.eachLayer((lyr) => {
+          const f = lyr.feature;
+          if (f && f.properties && f.properties.catchment_id === lookup.id) {
+            if (typeof lyr.fire === 'function') lyr.fire('click');
+          }
+        });
+      }
+    }
+
+    // 2) Map zoom — fly to the address, then back to the catchment bounds
+    //    if a catchment matched. Falls back to setView when flyTo is gated
+    //    (e.g. headless tests with a tiny container).
+    if (mapHandle && mapHandle.map) {
+      const m = mapHandle.map;
+      try {
+        if (typeof m.flyTo === 'function') m.flyTo([hit.lat, hit.lon], 14, { duration: 0.6 });
+        else m.setView([hit.lat, hit.lon], 14);
+      } catch (_e) {
+        try { m.setView([hit.lat, hit.lon], 14); } catch (_e2) {}
+      }
+    }
+
+    // 3) IFD reference — pre-mapped per catchment in the IFD JSON; lifted
+    //    straight from the loaded data so we never invent a station.
+    let ifdPayload = null;
+    if (ifdResult && ifdResult.ok && ifdResult.data && lookup.id) {
+      const entry = ifdResult.data.catchments && ifdResult.data.catchments[lookup.id];
+      if (entry && entry.reference_station_id) {
+        ifdPayload = {
+          reference_station_id:    entry.reference_station_id,
+          reference_station_name:  entry.reference_station_name || entry.reference_station_id,
+          reference_station_lonlat: Array.isArray(entry.reference_station_lonlat) ? entry.reference_station_lonlat.slice() : null,
+          distance_km:             typeof entry.reference_station_distance_km === 'number' ? entry.reference_station_distance_km : null,
+          auto:                    true,
+          confidence:              lookup.confidence === 'low' ? 'low' : (lookup.confidence === 'medium' ? 'medium' : 'high'),
+          reason:                  `Pre-mapped reference station for catchment ${lookup.id}.`,
+        };
+      }
+    }
+    setOperationalIfd(state, ifdPayload);
+
+    // 4) Event-window detection — uses precomputed duration_stats only.
+    const win = (rainfallResult && rainfallResult.ok)
+      ? detectEventWindow({
+          catchmentId: lookup.id,
+          rainfallData: rainfallResult.data,
+          preferredDurationKey: state.selectedDuration,
+        })
+      : null;
+    if (win) {
+      setOperationalEventWindow(state, { ...win, auto: true, override: false });
+    } else {
+      setOperationalEventWindow(state, lookup.id ? {
+        start: null, end: null, total_mm: null,
+        duration_key: state.selectedDuration || null,
+        confidence: 'unknown',
+        source: 'rolling_max_in_accumulation_window',
+        reason: 'No duration stats for this catchment in the selected accumulation window.',
+        auto: true, override: false,
+      } : null);
+    }
+
+    // 5) Nearby gauges — distances from the address to every reference
+    //    station in the IFD lookup table.
+    if (ifdResult && ifdResult.ok && ifdResult.data) {
+      setOperationalNearbyGauges(state, nearbyReferenceStations(hit.lon, hit.lat, ifdResult.data, { limit: 5 }));
+    }
+
+    render();
+  }
+
+  function onAddressClear() {
+    clearOperationalContext(state);
+    render();
+  }
+
+  function onOpCatchmentOverride() {
+    const op = state.operationalContext;
+    const current = op && op.catchment ? op.catchment.id : '';
+    const next = window.prompt('Override catchment ID (e.g. catch_3):', current || '');
+    if (next === null) return;
+    const trimmed = String(next).trim();
+    if (!trimmed) return;
+    let feat = null;
+    if (mapHandle && mapHandle.geojson) {
+      feat = (mapHandle.geojson.features || []).find((f) => f.properties && f.properties.catchment_id === trimmed) || null;
+    }
+    if (!feat) {
+      window.alert(`Catchment "${trimmed}" not found in the loaded GeoJSON.`);
+      return;
+    }
+    const prevId = current;
+    recordOperationalOverride(state, 'catchment', prevId, trimmed);
+    setOperationalCatchment(state, {
+      id:           trimmed,
+      auto:         false,
+      override:     true,
+      confidence:   'manual',
+      reason:       `Manually overridden by operator (was: ${prevId || '—'}).`,
+      distance_km:  null,
+      nearest_id:   trimmed,
+    });
+    setSelectedCatchment(state, trimmed, feat);
+    clearAnalysisRun(state);
+    if (mapHandle && mapHandle.layer) {
+      mapHandle.layer.eachLayer((lyr) => {
+        const f = lyr.feature;
+        if (f && f.properties && f.properties.catchment_id === trimmed) {
+          if (typeof lyr.fire === 'function') lyr.fire('click');
+        }
+      });
+    }
+    // Refresh IFD + event window for the newly selected catchment.
+    if (ifdResult && ifdResult.ok && ifdResult.data) {
+      const entry = ifdResult.data.catchments && ifdResult.data.catchments[trimmed];
+      if (entry && entry.reference_station_id) {
+        setOperationalIfd(state, {
+          reference_station_id:    entry.reference_station_id,
+          reference_station_name:  entry.reference_station_name || entry.reference_station_id,
+          reference_station_lonlat: Array.isArray(entry.reference_station_lonlat) ? entry.reference_station_lonlat.slice() : null,
+          distance_km:             typeof entry.reference_station_distance_km === 'number' ? entry.reference_station_distance_km : null,
+          auto:                    false,
+          override:                true,
+          confidence:              'manual',
+          reason:                  `Pre-mapped reference station for catchment ${trimmed} (selected after operator override).`,
+        });
+      }
+    }
+    if (rainfallResult && rainfallResult.ok) {
+      const w = detectEventWindow({ catchmentId: trimmed, rainfallData: rainfallResult.data, preferredDurationKey: state.selectedDuration });
+      setOperationalEventWindow(state, w ? { ...w, auto: false, override: true } : null);
+    }
+    render();
+  }
+
+  function onOpCatchmentReset() {
+    const op = state.operationalContext;
+    if (!op || !op.address) return;
+    // Re-run the address resolve flow to restore auto-selections.
+    const addr = op.address;
+    onAddressResolve({
+      short_label:  addr.short_label,
+      display_name: addr.display_name,
+      lat:          addr.lat,
+      lon:          addr.lon,
+      geocoder:     addr.geocoder,
+      importance:   addr.importance,
+      type:         addr.type,
+      category:     addr.category,
+      address:      addr.address,
+    });
+  }
+
+  function onOpEventWindowOverride() {
+    const op = state.operationalContext;
+    if (!op || !op.catchment || !op.catchment.id) {
+      window.alert('Select an address (or catchment) first.');
+      return;
+    }
+    const cur = (op.eventWindow && op.eventWindow.duration_key) || state.selectedDuration || '24h';
+    const promptList = ALL_DURATION_KEYS.join(', ');
+    const next = window.prompt(`Override duration for event-window detection.\nAllowed: ${promptList}\nCurrent: ${cur}`, cur);
+    if (next === null) return;
+    const trimmed = String(next).trim();
+    if (!ALL_DURATION_KEYS.includes(trimmed)) {
+      window.alert(`Unknown duration "${trimmed}". Use one of: ${promptList}`);
+      return;
+    }
+    if (rainfallResult && rainfallResult.ok) {
+      const w = detectEventWindow({ catchmentId: op.catchment.id, rainfallData: rainfallResult.data, preferredDurationKey: trimmed });
+      const prev = op.eventWindow ? op.eventWindow.duration_key : null;
+      recordOperationalOverride(state, 'eventWindow', prev, trimmed);
+      setOperationalEventWindow(state, w ? { ...w, auto: false, override: true, reason: `Operator selected ${trimmed} duration window (was: ${prev || 'auto'}).` } : null);
+      setSelectedDuration(state, trimmed);
+      render();
+    }
+  }
+
+  function onOpEventWindowReset() {
+    const op = state.operationalContext;
+    if (!op || !op.catchment || !op.catchment.id) return;
+    if (rainfallResult && rainfallResult.ok) {
+      const w = detectEventWindow({
+        catchmentId: op.catchment.id,
+        rainfallData: rainfallResult.data,
+        preferredDurationKey: null, // force auto re-pick
+      });
+      setOperationalEventWindow(state, w ? { ...w, auto: true, override: false } : null);
       render();
     }
   }
