@@ -116,27 +116,31 @@ def main():
                 'aep': {k: row.get(k) for k in AEP_KEYS},
             }
 
-        # Monotonicity quality filter: 1% AEP value must be non-decreasing
-        # as duration grows. Drop entries whose 1% AEP value exceeds the
-        # value at any longer included duration — those are scrape errors
+        # Monotonicity quality filter: each AEP column must be non-decreasing
+        # as duration grows. Flag entries where an AEP value is strictly less than
+        # the value at any longer included duration — those are scrape errors
         # in the source cache (e.g. 6h reporting 447 mm while 24h is 270).
         ordered = ['3h', '6h', '12h', '24h', '48h', '72h']
-        # Walk longest → shortest, track the running maximum of "valid larger" values.
-        running_max_at_larger = None
+        # Walk longest → shortest, track the running maximum of "valid larger" values per AEP.
+        running_max_by_aep: dict = {}
         for k in reversed(ordered):
             d = durations.get(k)
             if not d: continue
-            v = d['aep'].get('1%')
-            if v is None: continue
-            if running_max_at_larger is not None and v > running_max_at_larger:
-                durations[k] = {
-                    'duration_minutes': d['duration_minutes'],
-                    'aep': d['aep'],
-                    'quality_flag': 'suspect_non_monotonic',
-                }
-                # do not update running_max — we don't trust this value
-            else:
-                running_max_at_larger = v if running_max_at_larger is None else max(running_max_at_larger, v)
+            suspect_aeps = []
+            for aep_key, v in d.get('aep', {}).items():
+                if v is None:
+                    continue
+                prev = running_max_by_aep.get(aep_key)
+                if prev is not None and v < prev:
+                    # Strictly less than only — equality is acceptable and does not trigger suspect.
+                    suspect_aeps.append(aep_key)
+                else:
+                    # Update only for non-suspect values; preserve last good value for flagged columns.
+                    running_max_by_aep[aep_key] = v
+
+            if suspect_aeps:
+                d['quality_flag'] = 'suspect_non_monotonic'
+                d['suspect_aep_columns'] = sorted(suspect_aeps)
 
         out_catchments[cid] = {
             'catchment_centroid':       [round(clon, 6), round(clat, 6)],
