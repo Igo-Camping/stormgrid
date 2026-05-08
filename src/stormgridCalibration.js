@@ -22,8 +22,8 @@
 
    3. Apply calibration to a rainfall-data structure
       - applyCalibration() returns a NEW deep-cloneable rainfall_data
-        object with `total_mm` replaced by `radar_total_mm * factor`,
-        and the original radar value preserved as `raw_total_mm` so the
+        object with `present_total_mm` replaced by `radar_present_total_mm * factor`,
+        and the original radar value preserved as `raw_present_total_mm` so the
         operation is fully reversible. duration_stats[*].max_total_mm
         is also adjusted with the same factor; raw is preserved.
 
@@ -47,7 +47,7 @@ const IDW_EXPONENT = 2;
 const METHODOLOGY_NOTE =
   'Calibration is a transparent multiplicative bias correction with ' +
   'inverse-distance weighting (IDW, p=2) from per-gauge bias ratios. ' +
-  'Raw radar values are preserved (raw_total_mm) so the operation is ' +
+  'Raw radar values are preserved (raw_present_total_mm) so the operation is ' +
   'fully reversible. Calibration is NOT an AEP classification, NOT a ' +
   'return-period assignment, and NOT a formal exceedance assertion.';
 
@@ -135,7 +135,7 @@ export function computePairings({ gaugeData, rainfallData, geojson, windowKey })
     if (!pairedFeature) continue;
     const cid = pairedFeature.properties && pairedFeature.properties.catchment_id;
     const cRow = cid ? catchments[cid] : null;
-    const radarTotal = (cRow && typeof cRow.total_mm === 'number') ? cRow.total_mm : null;
+    const radarTotal = (cRow && typeof cRow.present_total_mm === 'number') ? cRow.present_total_mm : null;
 
     const bias = (typeof gaugeTotal === 'number' && typeof radarTotal === 'number' && radarTotal > 1e-6)
       ? gaugeTotal / radarTotal
@@ -281,9 +281,9 @@ export function applyCalibration({ rainfallData, calibrationFactors }) {
       c.nearest_gauge_distance_km = (typeof dist === 'number') ? dist : null;
 
       // Preserve raw + apply factor at the catchment level
-      if (typeof c.total_mm === 'number') {
-        c.raw_total_mm = c.total_mm;
-        c.total_mm = round3(c.total_mm * c.calibration_factor);
+      if (typeof c.present_total_mm === 'number') {
+        c.raw_present_total_mm = c.present_total_mm;
+        c.present_total_mm = round3(c.present_total_mm * c.calibration_factor);
       }
       // Mean / min / max scale the same way (uniform multiplicative).
       for (const k of ['mean_mm', 'min_mm', 'max_mm']) {
@@ -293,23 +293,14 @@ export function applyCalibration({ rainfallData, calibrationFactors }) {
         }
       }
 
-      // Each duration's max_total_mm gets the same factor (we have no
-      // sub-window gauge data so a flat scaling is the only honest move).
+      // Duration stats are uncalibrated radar sub-window estimates.
+      // Calibration applies only to the accumulation-window total
+      // (present_total_mm). Sub-window numeric values remain unchanged.
       if (c.duration_stats) {
         for (const dk of Object.keys(c.duration_stats)) {
           const ds = c.duration_stats[dk];
           if (!ds) continue;
-          ds.calibration_factor = c.calibration_factor;
-          if (typeof ds.max_total_mm === 'number') {
-            ds.raw_max_total_mm = ds.max_total_mm;
-            ds.max_total_mm = round3(ds.max_total_mm * c.calibration_factor);
-          }
-          for (const k of ['mean_mm', 'min_mm', 'max_mm']) {
-            if (typeof ds[k] === 'number') {
-              ds['raw_' + k] = ds[k];
-              ds[k] = round3(ds[k] * c.calibration_factor);
-            }
-          }
+          ds.calibration_applied = false;
         }
       }
 
@@ -335,7 +326,7 @@ function tagCopy(rainfallData, factorsByCatchment) {
       if (!c) continue;
       c.calibration_factor = 1.0;
       c.nearest_gauge_distance_km = null;
-      if (typeof c.total_mm === 'number') c.raw_total_mm = c.total_mm;
+      if (typeof c.present_total_mm === 'number') c.raw_present_total_mm = c.present_total_mm;
     }
   }
   return clone;
@@ -500,6 +491,4 @@ function formatMm(v) {
 function escapeHtml(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-function escapeAttr(s) { return String(s).replace(/"/g, '&quot;'); }
+    .replace
