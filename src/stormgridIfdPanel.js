@@ -157,7 +157,7 @@ export function renderIfdComparisonPanel(host, {
       const arfVals = [];
       for (const aep of AEP_COLUMNS) {
         const e = t.arf_by_aep[aep];
-        if (e && Number.isFinite(e.arf)) {
+        if (e && e.valid === true && Number.isFinite(e.arf)) {
           arfPerAep[aep] = e.arf;
           arfVals.push(e.arf);
         } else {
@@ -194,7 +194,8 @@ export function renderIfdComparisonPanel(host, {
       if (v == null) return '—';
       if (ifdDisplayMode === 'arf') {
         const arf = arfPerAep ? arfPerAep[p] : null;
-        if (arf == null) return `${fmt(v)} <small>· ARF —</small>`;
+        // Guard: render em dash if ARF is null or non-finite (including NaN).
+        if (arf == null || !Number.isFinite(arf)) return '—';
         const adj = v * arf;
         const r = comparison && comparison.per_aep && comparison.per_aep[p] && comparison.per_aep[p].ratio;
         const ratioFrag = (typeof r === 'number')
@@ -498,7 +499,7 @@ function renderIfdChart(cifd, durationStatsByKey, opts = {}) {
       arfPerAep = {};
       for (const a of AEP_COLUMNS) {
         const e = t.arf_by_aep[a];
-        arfPerAep[a] = e && Number.isFinite(e.arf) ? e.arf : null;
+        arfPerAep[a] = e && e.valid === true && Number.isFinite(e.arf) ? e.arf : null;
       }
     }
     AEP_COLUMNS.forEach((p) => {
@@ -577,9 +578,4 @@ function prettyFlag(f) {
 function escapeHtml(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-function escapeAttr(s) {
-  return String(s == null ? '' : s).replace(/[^a-zA-Z0-9_-]/g, '');
-}
+    .replace(/"/g, '&quot;').replace(/'

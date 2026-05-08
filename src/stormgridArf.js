@@ -65,6 +65,10 @@ export function computeArf({ areaKm2, durationHours, aep, coefficients, validity
   if (!coefficients) {
     return { arf: null, valid: false, flags: ['no_coefficients_loaded'] };
   }
+  // Guard: do not compute ARF if coefficients are unverified.
+  if (coefficients.verified !== true) {
+    return { arf: null, valid: false, flags: ['unverified'] };
+  }
   const A = Number(areaKm2);
   const Dh = Number(durationHours);
   const aepF = typeof aep === 'number' ? aep : aepStringToFraction(aep);
@@ -129,10 +133,4 @@ export function getRegion(arfData, regionKey) {
   return arfData.regions ? arfData.regions[key] || null : null;
 }
 
-export function getValidity(arfData) {
-  return (arfData && arfData.validity) || null;
-}
-
-export function isVerified(arfData) {
-  return !!(arfData && arfData.verified === true);
-}
+export func

@@ -359,20 +359,23 @@ def compute_duration_stats(ts_in_window, intermediates, cid, duration_hours):
     if all(r['inside'] == 0 for r in rows):
         return None
 
-    means = [r['mean'] if r['mean'] is not None else 0.0 for r in rows]
+    means = [r['mean'] for r in rows]  # None for missing frames — never substituted with 0.0
 
-    # Find argmax of rolling sum of per-frame means (real frame data —
-    # never a scaled total).
+    # Find argmax of rolling sum, excluding any window that contains a missing frame.
+    # Incomplete windows are intentionally excluded rather than zero-filled.
     n_positions = len(rows) - n + 1
-    best_i = 0
+    best_i = None
     best_sum = float('-inf')
-    rolling = sum(means[:n])
-    if rolling > best_sum:
-        best_sum, best_i = rolling, 0
-    for i in range(1, n_positions):
-        rolling += means[i + n - 1] - means[i - 1]
-        if rolling > best_sum:
-            best_sum, best_i = rolling, i
+    for i in range(n_positions):
+        window_means = means[i:i + n]
+        if any(m is None for m in window_means):
+            continue  # skip windows containing missing frames
+        window_sum = sum(window_means)
+        if window_sum > best_sum:
+            best_sum, best_i = window_sum, i
+
+    if best_i is None:
+        return None  # no fully valid window exists for this duration
 
     sub = rows[best_i:best_i + n]
     sub_inside  = sum(r['inside'] for r in sub)
@@ -491,7 +494,7 @@ def aggregate_window(catchments, intermediates, ts_in_window):
         means = per_means[cid]
         if not means:
             out_catchments[cid] = {
-                'total_mm':          None,
+                'present_total_mm':  None,  # sum of valid-frame means only; None when no valid frames
                 'mean_mm':           None,
                 'min_mm':            None,
                 'max_mm':            None,
@@ -507,7 +510,9 @@ def aggregate_window(catchments, intermediates, ts_in_window):
             continue
 
         out_catchments[cid] = {
-            'total_mm':          round(float(sum(means)), 4),
+            # present_total_mm is the sum of valid-frame means only; when frames_missing > 0,
+            # it is not a complete accumulation and must not be interpreted as the full event total.
+            'present_total_mm':  round(float(sum(means)), 4),
             'mean_mm':           round(float(sum(means) / len(means)), 4),
             'min_mm':            round(float(per_min[cid]), 4) if per_min[cid] is not None else None,
             'max_mm':            round(float(per_max[cid]), 4) if per_max[cid] is not None else None,
@@ -662,14 +667,3 @@ def main():
     ts_sorted = sorted(intermediates.keys())
     out_catchments, frame_records, frames_used, durations_meta = aggregate_window(
         catchments, intermediates, ts_sorted)
-    payload = make_payload(out_catchments, frame_records, start_dt, end_dt, frames_used, durations_meta)
-
-    name = args.window_name or 'latest'
-    out_path, size = write_payload(payload, f'catchment_rainfall_{name}.json')
-    print(f'[stormgrid] payload: {size/1024:.2f} KB', file=sys.stderr)
-    print(f'[stormgrid] schema:  {SCHEMA_VERSION}', file=sys.stderr)
-    print(f'[stormgrid] wrote {out_path.relative_to(REPO)}', file=sys.stderr)
-
-
-if __name__ == '__main__':
-    main()
