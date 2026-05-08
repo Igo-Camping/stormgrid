@@ -29,7 +29,7 @@ export function renderIfdComparisonPanel(host, {
   catchmentRow,
   durationStatsByKey,
   catchmentAreaKm2,
-  ifdDisplayMode = 'point',
+  ifdDisplayMode = 'arf',
   onIfdModeChange,
 }) {
   host.innerHTML = '';
@@ -92,7 +92,7 @@ export function renderIfdComparisonPanel(host, {
   const refLat = cifd.reference_station_lonlat ? cifd.reference_station_lonlat[1] : null;
   const areaCell = (typeof catchmentAreaKm2 === 'number') ? `${catchmentAreaKm2.toFixed(2)} km²` : '—';
   head.innerHTML = `
-    <h3>${ifdDisplayMode === 'arf' ? 'ARF-adjusted areal design rainfall' : 'Point IFD context'}
+    <h3>${ifdDisplayMode === 'arf' ? 'ARF-adjusted areal design rainfall' : 'Point IFD context'}${(ifdDisplayMode === 'point' && Number.isFinite(catchmentAreaKm2) && catchmentAreaKm2 > 1 ? ' <span class="stormgrid-ifd__non-areal-tag" title="Single-point IFD applied to a multi-km² catchment — consider ARF-adjusted mode">non-areal</span>' : '')}
         — <span class="stormgrid-ifd__cid">${escapeHtml(catchmentId)}</span></h3>
     <dl class="stormgrid-ifd__refmeta">
       <div><dt>Reference station</dt>
@@ -570,12 +570,4 @@ function prettyFlag(f) {
     case 'non_positive_arf_clipped':return 'ARF computed at or below 0 — clipped to 0.01.';
     case 'area_invalid':            return 'Catchment area invalid.';
     case 'duration_invalid':        return 'Duration invalid.';
-    case 'aep_invalid':             return 'AEP value invalid.';
-    default: return '';
-  }
-}
-
-function escapeHtml(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'
+    case 'aep_inva
