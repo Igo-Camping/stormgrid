@@ -653,6 +653,7 @@ def main():
         print('[stormgrid] ----- summary -----', file=sys.stderr)
         print(f'[stormgrid] total runtime:  {time.monotonic() - t0:.1f} s + frame pass', file=sys.stderr)
         print(f'[stormgrid] schema:         {SCHEMA_VERSION}', file=sys.stderr)
+        _verify_archive_manifest(Path(archive_root))
         return
 
     # ── single-window mode ────────────────────────────────────────────────
@@ -667,3 +668,30 @@ def main():
     ts_sorted = sorted(intermediates.keys())
     out_catchments, frame_records, frames_used, durations_meta = aggregate_window(
         catchments, intermediates, ts_sorted)
+    payload = make_payload(out_catchments, frame_records, start_dt, end_dt, frames_used, durations_meta)
+    out_path, size = write_payload(payload, args.window_name or 'catchment_rainfall_latest.json')
+    print(f'[stormgrid] wrote {out_path.relative_to(REPO)} ({size/1024:.2f} KB)', file=sys.stderr)
+    print('[stormgrid] ----- summary -----', file=sys.stderr)
+    print(f'[stormgrid] schema: {SCHEMA_VERSION}', file=sys.stderr)
+    _verify_archive_manifest(Path(archive_root))
+
+
+def _verify_archive_manifest(archive_dir: Path) -> None:
+    """Post-build manifest integrity check. Warns to stderr only — never aborts build."""
+    manifest_script = Path(__file__).parent / "build_archive_manifest.py"
+    if not manifest_script.exists():
+        return
+    import subprocess
+    result = subprocess.run(
+        [sys.executable, str(manifest_script), "--archive-dir", str(archive_dir)],
+        capture_output=True, text=True
+    )
+    if result.stderr:
+        print(result.stderr, file=sys.stderr, end="")
+    if result.returncode not in (0, 1):
+        print(f"[manifest] unexpected exit code {result.returncode}", file=sys.stderr)
+    # Never raise — manifest mismatch must not abort rainfall generation
+
+
+if __name__ == '__main__':
+    main()
