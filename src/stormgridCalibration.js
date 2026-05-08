@@ -225,21 +225,26 @@ export function computeCalibrationFactors({ pairings, geojson, exponent = IDW_EX
     const clon = props.centroid_lon, clat = props.centroid_lat;
     if (!Number.isFinite(clon) || !Number.isFinite(clat)) continue;
 
-    let num = 0, den = 0, nearest = Infinity, exactPair = null;
+    let num = 0, den = 0, nearest = Infinity;
     for (const p of valid) {
       const [glon, glat] = p.gauge_lonlat || [null, null];
       if (!Number.isFinite(glon) || !Number.isFinite(glat)) continue;
       const d = haversineKm(clon, clat, glon, glat);
       if (d < nearest) nearest = d;
-      // d=0 is virtually impossible (gauge centroid != catchment centroid)
-      // but guard anyway: treat <0.01 km as exact match.
-      if (d < 0.01) { exactPair = p; break; }
-      const w = 1 / Math.pow(d, exponent);
+      const d_eff = Math.max(d, 0.05);   // 50 m floor (d in km) — prevents single-gauge dominance
+      const w = 1 / (d_eff ** IDW_EXPONENT);
       num += p.bias_ratio * w;
       den += w;
     }
-    const factor = exactPair ? exactPair.bias_ratio : (den > 0 ? num / den : 1.0);
-    out.factor_by_catchment[cid] = round3(factor);
+    const factor = den > 0 ? num / den : null;
+    if (factor !== null) {
+      out.factor_by_catchment[cid] = round3(factor);
+    } else {
+      // No contributing gauge pairs — record explicitly; do not store a 1.0 identity value
+      out.factor_by_catchment[cid] = null;
+      out.no_pairs_catchments = out.no_pairs_catchments || [];
+      out.no_pairs_catchments.push(cid);
+    }
     out.nearest_pair_distance_km_by_catchment[cid] = round2(nearest === Infinity ? null : nearest);
   }
   return out;
@@ -324,7 +329,8 @@ function tagCopy(rainfallData, factorsByCatchment) {
     for (const cid of Object.keys(clone.catchments)) {
       const c = clone.catchments[cid];
       if (!c) continue;
-      c.calibration_factor = 1.0;
+      c.calibration_factor = null;
+      c.calibration_mode   = 'identity_no_pairs';
       c.nearest_gauge_distance_km = null;
       if (typeof c.present_total_mm === 'number') c.raw_present_total_mm = c.present_total_mm;
     }
