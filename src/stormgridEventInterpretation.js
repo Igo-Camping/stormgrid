@@ -88,7 +88,7 @@ export function computeInterpretationConfidence({
       status: coefficientsVerified === true ? 'pass' : 'fail',
       detail: coefficientsVerified === true
         ? 'Coefficients flagged verified.'
-        : 'ARF coefficients UNVERIFIED — replace data/arf_coefficients.json with ARR2019 Book 2 Ch. 4 values.',
+        : 'ARF coefficients UNVERIFIED — interpretation confidence is capped at low. Replace data/arf_coefficients.json with ARR2019 Book 2 Ch. 4 values.',
     },
     { factor: 'observed_coverage_min',
       pass_rule: 'min coverage >= 0.90 (warn at >= 0.70)',
@@ -124,10 +124,18 @@ export function computeInterpretationConfidence({
   const failures = factors.filter((f) => f.status === 'fail').length;
   const warns    = factors.filter((f) => f.status === 'warn').length;
   let level;
-  if (failures > 0)        level = 'low';
-  else if (warns >= 2)     level = 'moderate';
-  else if (warns >= 1)     level = 'moderate';
-  else                     level = 'high';
+  // ARF coefficient verification is a hard gate — if unverified, interpretation
+  // is capped at 'low' regardless of all other factors. The 'moderate'/'high'
+  // tiers are only reachable when coefficients are verified.
+  if (coefficientsVerified !== true) {
+    level = 'low';
+  } else if (failures > 0) {
+    level = 'low';
+  } else if (warns >= 1) {
+    level = 'moderate';
+  } else {
+    level = 'high';
+  }
   return { level, factors };
 }
 
@@ -160,10 +168,4 @@ export function buildEventInterpretation({
       event_aep_classified:  false,
       return_period_assigned: false,
       formal_exceedance_asserted: false,
-      note: 'Interpretation only. Stormgrid never classifies an event AEP, never assigns a return period, and never asserts formal exceedance. Outputs are descriptive ratios + bands relative to ARF-adjusted reference depths.',
-    },
-    headline,
-    consistency,
-    confidence,
-  };
-}
+      n
