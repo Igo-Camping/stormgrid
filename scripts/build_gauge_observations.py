@@ -1,8 +1,8 @@
-"""Stormgrid — gauge observations builder (Phase 14, stub).
+"""Stormgrid - gauge observations builder (Phase 14, stub).
 
 Operator-run script that refreshes data/gauge_observations.json from real
 gauge feeds. The shipping JSON contains SYNTHETIC values exercising the
-calibration framework — replace before any operational use.
+calibration framework - replace before any operational use.
 
 This is a stub to keep the surface area small while Stormgrid stays
 standalone. Real implementations should pull from:
@@ -18,7 +18,7 @@ the result back to data/gauge_observations.json keeping the existing
 schema.
 
 The calibration framework in src/stormgridCalibration.js will pick up
-the new file on the next page load — no other code changes needed.
+the new file on the next page load - no other code changes needed.
 """
 
 import argparse
@@ -35,6 +35,10 @@ RAINFALL_FILES = {
     "30d": REPO_ROOT / "data" / "catchment_rainfall_30d.json",
 }
 OUTPUT_PATH = REPO_ROOT / "data" / "gauge_observations.json"
+
+ABS_CAP_MM = 150.0          # intentionally conservative first-pass cap; not a scientifically validated duration-dependent threshold
+MAX_REJECT_FRACTION = 0.10
+MAX_DRIFT_MM = 5.0
 
 
 def collect_unique_stations(ifd: dict) -> list[dict]:
@@ -61,14 +65,164 @@ def window_endpoints() -> dict[str, dict]:
     return out
 
 
-def fetch_station_total(station: dict, window_key: str, window: dict) -> float | None:
-    """Stub. Replace with a real BOM/MHL/WISKI fetch.
+def qc_readings(values: list, station_id: str, window_key: str):
+    """Apply per-reading QC before summing. Returns cleaned total mm or None.
 
-    `station['lonlat']` and `window['start']` / `window['end']` are
-    everything you need. Return mm of rainfall over the window, or
-    None if the station has no data for that window."""
-    # TODO: real implementation. For now, return None so the script
-    # never silently fabricates values when re-run.
+    QC rules (applied to each individual reading):
+      - Reject negative values
+      - Reject non-finite values (NaN, +/-inf)
+      - Reject values exceeding ABS_CAP_MM
+      - Reject isolated spikes: value > 10x max of finite neighbours AND value > 20 mm
+        (only when at least one neighbour is finite and > 0)
+
+    None entries are missing frames - skipped, not counted as rejected.
+
+    Returns None if:
+      - rejection fraction exceeds MAX_REJECT_FRACTION
+      - cleaned sum differs from raw sum by more than MAX_DRIFT_MM
+        (deliberate: a station whose total changes materially under QC is
+         unsuitable for calibration rather than silently corrected)
+    """
+    raw_count = sum(1 for v in values if v is not None)
+    rejected = 0
+    cleaned = []
+
+    for i, v in enumerate(values):
+        if v is None:
+            continue
+        # Reject negative
+        if v < 0:
+            rejected += 1
+            continue
+        # Reject non-finite
+        if not (v == v) or v == float('inf') or v == float('-inf'):
+            rejected += 1
+            continue
+        # Reject over cap
+        if v > ABS_CAP_MM:
+            rejected += 1
+            continue
+        # Isolated spike check: only if at least one neighbour is finite and > 0
+        neighbours = [
+            values[j] for j in (i - 1, i + 1)
+            if 0 <= j < len(values) and values[j] is not None and values[j] > 0
+        ]
+        if neighbours and v > 20.0:
+            if v > 10.0 * max(neighbours):
+                rejected += 1
+                continue
+        cleaned.append(v)
+
+    if raw_count == 0:
+        print(f"[gauges] {station_id} window={window_key}: no readings - returning None", file=sys.stderr)
+        return None
+
+    reject_fraction = rejected / raw_count
+    if reject_fraction > MAX_REJECT_FRACTION:
+        print(
+            f"[gauges] {station_id} window={window_key}: rejected {rejected}/{raw_count} readings "
+            f"({reject_fraction:.1%}) > {MAX_REJECT_FRACTION:.0%} threshold - returning None",
+            file=sys.stderr,
+        )
+        return None
+
+    raw_sum = sum(v for v in values if v is not None)
+    cleaned_sum = sum(cleaned)
+    if abs(cleaned_sum - raw_sum) > MAX_DRIFT_MM:
+        print(
+            f"[gauges] {station_id} window={window_key}: QC drift "
+            f"{abs(cleaned_sum - raw_sum):.3f} mm > {MAX_DRIFT_MM} mm limit - "
+            f"station unsuitable for calibration",
+            file=sys.stderr,
+        )
+        return None
+
+    print(
+        f"[gauges] {station_id} window={window_key}: "
+        f"raw={raw_count} readings, rejected={rejected}, cleaned_total={cleaned_sum:.3f} mm",
+        file=sys.stderr,
+    )
+    return round(cleaned_sum, 3)
+
+
+def fetch_from_kisters(station: dict, window: dict, window_key: str):
+    """Fetch timeseries from MHL/WISKI KiWIS REST API and apply QC.
+
+    Uses stdlib only (urllib). No new dependencies.
+    30-second timeout. On network or parse failure, returns None.
+    """
+    import urllib.request
+    import urllib.parse
+    import urllib.error
+
+    ts_id = station["ts_id"]
+    station_id = station["station_id"]
+    params = urllib.parse.urlencode({
+        "service": "kisters",
+        "type": "queryServices",
+        "request": "getTimeseriesValues",
+        "datasource": "0",
+        "format": "json",
+        "ts_id": ts_id,
+        "from": window.get("start", ""),
+        "to": window.get("end", ""),
+        "returnfields": "Timestamp,Value",
+    })
+    url = f"https://www.mhl.nsw.gov.au/cgi/webservice.exe?{params}"
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "stormgrid-gauge-fetch/1.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            body = resp.read().decode("utf-8")
+    except urllib.error.URLError as e:
+        print(f"[gauges] {station_id} window={window_key}: KiWIS URLError - {e}", file=sys.stderr)
+        return None
+    except Exception as e:
+        print(f"[gauges] {station_id} window={window_key}: KiWIS fetch error - {e}", file=sys.stderr)
+        return None
+
+    try:
+        payload = json.loads(body)
+        # KiWIS returns a list; first item has 'data'
+        data = payload[0].get("data", []) if isinstance(payload, list) else payload.get("data", [])
+    except (json.JSONDecodeError, IndexError, KeyError, TypeError) as e:
+        print(f"[gauges] {station_id} window={window_key}: KiWIS parse error - {e}", file=sys.stderr)
+        return None
+
+    values = []
+    for row in data:
+        try:
+            raw_val = row[1] if isinstance(row, (list, tuple)) else None
+            if raw_val in (None, "", "---"):
+                values.append(None)
+            else:
+                values.append(float(raw_val))
+        except (ValueError, TypeError):
+            values.append(None)
+
+    if not values:
+        print(f"[gauges] {station_id} window={window_key}: KiWIS returned no rows", file=sys.stderr)
+        return None
+
+    return qc_readings(values, station_id, window_key)
+
+
+def fetch_station_total(station: dict, window_key: str, window: dict):
+    """Fetch station rainfall total for the given window, with QC applied.
+
+    Primary: MHL/WISKI KiWIS REST API (requires station['ts_id']).
+    Fallback: None with stderr explanation (BoM CDO not yet implemented).
+
+    Returns mm of cleaned rainfall over the window, or None on failure.
+    Does not cache responses.
+    """
+    if station.get("ts_id"):
+        return fetch_from_kisters(station, window, window_key)
+    print(
+        f"[gauges] {station['station_id']} window={window_key}: "
+        f"no ts_id and no verified BoM CDO mapping - skipping",
+        file=sys.stderr,
+    )
     return None
 
 
@@ -79,7 +233,7 @@ def main(argv=None) -> int:
     args = p.parse_args(list(argv) if argv is not None else None)
 
     if not IFD_PATH.exists():
-        print(f"[gauges] {IFD_PATH} missing — cannot enumerate stations.", file=sys.stderr)
+        print(f"[gauges] {IFD_PATH} missing - cannot enumerate stations.", file=sys.stderr)
         return 2
 
     ifd = json.loads(IFD_PATH.read_text(encoding="utf-8"))
@@ -99,9 +253,11 @@ def main(argv=None) -> int:
         rows.append({**s, "totals_mm": totals})
 
     if not any_real:
-        print("[gauges] fetch_station_total() returned no values — refusing to "
-              "overwrite the synthetic placeholder dataset. Implement the stub.",
-              file=sys.stderr)
+        print(
+            "[gauges] fetch_station_total() returned no values - refusing to "
+            "overwrite the synthetic placeholder dataset. Implement the stub.",
+            file=sys.stderr,
+        )
         return 1
 
     payload = {
