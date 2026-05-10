@@ -15,7 +15,7 @@ records that explicitly so downstream consumers cannot mistake it
 for a catchment areal design rainfall.
 
 Usage:
-    python scripts/build_catchment_ifd.py --pluvio-root "C:\\Users\\fonzi\\Weather App Folder"
+    python scripts/build_catchment_ifd.py --pluvio-root "D:\\repos\\pluviometrics\\pluvio-stormgauge"
 """
 import argparse
 import json
@@ -41,7 +41,7 @@ AEP_KEYS = ['1%', '2%', '5%', '20%']
 
 DEFAULT_PLUVIO_ROOT = os.environ.get(
     'STORMGRID_PLUVIO_ROOT',
-    r'C:\Users\fonzi\Weather App Folder')
+    r'D:\repos\pluviometrics\pluvio-stormgauge')
 
 
 def parse_args():
