@@ -1,0 +1,135 @@
+/* location.css — styling for the Location section (docs/02 §5.1, §10.2).
+ *
+ * STRUCTURAL + minimal theming for the Location spine entry only. New file per
+ * the build constraint (the existing stormgrid.css and src/shell/shell.css are
+ * not touched). Class prefix `sgloc-` namespaces every selector to avoid
+ * collision with `sg-` (shell) and the legacy stylesheet.
+ *
+ * Colour values reuse the existing teal house colour (#00585b) used in
+ * src/map/layers.js so the section reads as part of the same product.
+ */
+
+.sgloc { display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem; }
+.sgloc-block { display: block; }
+
+/* ── Address search ─────────────────────────────────────────────────────────── */
+.sgloc-address { position: relative; }
+.sgloc-address__inner { display: flex; align-items: center; gap: 0.25rem; }
+.sgloc-address__input {
+  flex: 1 1 auto;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #b6c2c3;
+  border-radius: 4px;
+  font: inherit;
+}
+.sgloc-address__input:focus { outline: 2px solid #00585b; outline-offset: 1px; }
+.sgloc-address__clear {
+  flex: 0 0 auto;
+  border: 1px solid #b6c2c3;
+  background: #fff;
+  border-radius: 4px;
+  width: 1.8rem; height: 1.8rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.sgloc-address__hits {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  border: 1px solid #b6c2c3;
+  border-radius: 4px;
+  max-height: 16rem;
+  overflow: auto;
+  display: none;
+  background: #fff;
+}
+.sgloc-address__hits--open { display: block; }
+.sgloc-address__hit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+  border-bottom: 1px solid #eef1f1;
+}
+.sgloc-address__hit:last-child { border-bottom: none; }
+.sgloc-address__hit--active,
+.sgloc-address__hit:hover { background: #e7f1f1; }
+.sgloc-address__hit-main { font-weight: 600; }
+.sgloc-address__hit-sub { font-size: 0.8em; opacity: 0.7; }
+
+.sgloc-address__status { margin: 0.25rem 0 0; font-size: 0.8em; min-height: 1em; opacity: 0.85; }
+.sgloc-address__status--busy { opacity: 1; }
+.sgloc-address__status--error { color: #9b1c1c; opacity: 1; }
+
+/* ── Mode toggle ────────────────────────────────────────────────────────────── */
+.sgloc-modes { border: none; margin: 0; padding: 0; }
+.sgloc-modes__legend { font-size: 0.8em; opacity: 0.75; padding: 0; margin-bottom: 0.25rem; }
+.sgloc-modes__opt { display: inline-flex; align-items: center; margin-right: 0.75rem; cursor: pointer; }
+.sgloc-modes__radio { margin-right: 0.2rem; }
+
+/* ── Per-mode panel ─────────────────────────────────────────────────────────── */
+.sgloc-hint { margin: 0.25rem 0 0; font-size: 0.82em; opacity: 0.8; }
+.sgloc-hint--stub { color: #6b5300; background: #fdf6e3; border: 1px dashed #d9c98f; border-radius: 4px; padding: 0.4rem 0.5rem; }
+.sgloc-coords { display: flex; gap: 0.3rem; margin-top: 0.4rem; flex-wrap: wrap; }
+.sgloc-coord { flex: 1 1 6rem; min-width: 5rem; padding: 0.35rem 0.4rem; border: 1px solid #b6c2c3; border-radius: 4px; font: inherit; }
+.sgloc-btn {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #00585b;
+  background: #00585b;
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* ── Selected location ──────────────────────────────────────────────────────── */
+.sgloc-selected { border-top: 1px solid #e2e8e8; padding-top: 0.5rem; }
+.sgloc-selected__head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+.sgloc-selected__label { font-weight: 700; }
+.sgloc-selected__sub { font-size: 0.82em; opacity: 0.8; }
+.sgloc-selected__meta { margin-top: 0.1rem; }
+
+.sgloc-link {
+  border: none; background: none; padding: 0;
+  color: #00585b; text-decoration: underline; cursor: pointer; font: inherit; font-size: 0.85em;
+}
+
+.sgloc-warn {
+  margin: 0.35rem 0 0;
+  font-size: 0.8em;
+  color: #7a4a00;
+  background: #fff5e6;
+  border: 1px solid #f0d6a8;
+  border-radius: 4px;
+  padding: 0.3rem 0.45rem;
+}
+
+.sgloc-conf { margin: 0.35rem 0 0; font-size: 0.8em; }
+.sgloc-conf__dots { letter-spacing: 0.1em; }
+.sgloc-conf--guess .sgloc-conf__dots,
+.sgloc-conf--guess .sgloc-conf__text { color: #7a4a00; }
+.sgloc-conf__src { margin: 0.35rem 0 0; font-size: 0.78em; opacity: 0.7; }
+
+/* ── Recent list ────────────────────────────────────────────────────────────── */
+.sgloc-recent { border-top: 1px solid #e2e8e8; padding-top: 0.5rem; }
+.sgloc-recent__title { margin: 0 0 0.3rem; font-size: 0.82em; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.75; }
+.sgloc-recent__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.sgloc-recent__item {
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  background: none;
+  padding: 0.3rem 0.4rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+}
+.sgloc-recent__item:hover { background: #e7f1f1; border-color: #cfe0e0; }
+.sgloc-recent__tag { font-size: 0.78em; opacity: 0.6; }
+
+/* ── Empty / persistence ───────────────────────────────────────────────────── */
+.sgloc-empty { margin: 0; font-size: 0.82em; opacity: 0.7; }
+.sgloc-persistnote { margin: 0; font-size: 0.75em; opacity: 0.6; }
