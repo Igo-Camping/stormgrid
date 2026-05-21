@@ -1,0 +1,123 @@
+/* event.css — Event / Timeframe section styling (docs/02 §5.2).
+   Scoped to .sgevt* classes so it never collides with other layers.
+   New CSS only; no edits to existing stylesheets. */
+
+.sgevt { display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.85rem; }
+
+.sgevt-block { display: flex; flex-direction: column; gap: 0.4rem; }
+.sgevt-block[hidden] { display: none; }
+
+/* ── Mode toggle ───────────────────────────────────────────────────────────── */
+.sgevt-modes {
+  border: 1px solid var(--sg-border, #d8dde3);
+  border-radius: 6px;
+  padding: 0.4rem 0.55rem;
+  margin: 0;
+}
+.sgevt-modes__legend { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--sg-muted, #6b7480); padding: 0 0.25rem; }
+.sgevt-modes__opt { display: inline-flex; align-items: center; gap: 0.25rem; margin-right: 0.9rem; cursor: pointer; }
+.sgevt-modes__radio { margin: 0; }
+
+/* ── Major events list ─────────────────────────────────────────────────────── */
+.sgevt-events__title,
+.sgevt-manual__title {
+  font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--sg-muted, #6b7480); margin: 0 0 0.15rem;
+}
+
+.sgevt-empty,
+.sgevt-note {
+  margin: 0.25rem 0; color: var(--sg-muted, #6b7480); font-size: 0.8rem; line-height: 1.35;
+}
+.sgevt-note--error { color: var(--sg-danger, #b3261e); }
+
+/* Gate banner — the suppressed-AEP honesty line. Visually distinct, never alarming. */
+.sgevt-gatebanner {
+  margin: 0.1rem 0 0.4rem;
+  padding: 0.3rem 0.5rem;
+  background: var(--sg-warn-bg, #fff8e6);
+  border: 1px solid var(--sg-warn-border, #f0d999);
+  border-radius: 5px;
+  color: var(--sg-warn-fg, #7a5a00);
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+
+/* Progress bar — honest scan progress. */
+.sgevt-progress { display: flex; align-items: center; gap: 0.5rem; margin: 0.2rem 0 0.4rem; }
+.sgevt-progress__track {
+  flex: 1; height: 6px; border-radius: 3px;
+  background: var(--sg-track, #e7ebef); overflow: hidden;
+}
+.sgevt-progress__fill {
+  height: 100%; background: var(--sg-accent, #2f6fb3);
+  transition: width 160ms linear;
+}
+.sgevt-progress__label { font-size: 0.72rem; color: var(--sg-muted, #6b7480); white-space: nowrap; }
+
+.sgevt-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+
+.sgevt-row {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  width: 100%; text-align: left;
+  background: var(--sg-surface, #fff);
+  border: 1px solid var(--sg-border, #d8dde3);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+  font: inherit; color: inherit;
+}
+.sgevt-row:hover { border-color: var(--sg-accent, #2f6fb3); }
+.sgevt-row--selected {
+  border-color: var(--sg-accent, #2f6fb3);
+  box-shadow: inset 0 0 0 1px var(--sg-accent, #2f6fb3);
+  background: var(--sg-accent-bg, #eef4fb);
+}
+
+.sgevt-row__rank {
+  flex: 0 0 auto; min-width: 1.2rem;
+  font-variant-numeric: tabular-nums; font-weight: 600;
+  color: var(--sg-muted, #6b7480);
+}
+.sgevt-row__main { flex: 1 1 auto; display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.sgevt-row__date { font-weight: 600; }
+.sgevt-row__meta { font-size: 0.78rem; color: var(--sg-muted, #6b7480); }
+.sgevt-row__aep { font-size: 0.76rem; }
+.sgevt-row__aep--gated { color: var(--sg-muted, #6b7480); font-style: italic; }
+.sgevt-row__flag { font-size: 0.74rem; color: var(--sg-warn-fg, #7a5a00); }
+.sgevt-row__conf {
+  flex: 0 0 auto; letter-spacing: 0.05em;
+  color: var(--sg-accent, #2f6fb3); font-size: 0.8rem;
+}
+
+/* ── Manual timeframe ──────────────────────────────────────────────────────── */
+.sgevt-field { display: flex; flex-direction: column; gap: 0.25rem; }
+.sgevt-field__label { font-size: 0.74rem; color: var(--sg-muted, #6b7480); }
+.sgevt-select {
+  font: inherit; padding: 0.3rem 0.4rem;
+  border: 1px solid var(--sg-border, #d8dde3); border-radius: 5px;
+  background: var(--sg-surface, #fff);
+}
+
+.sgevt-durs { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.sgevt-dur {
+  font: inherit; font-size: 0.78rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--sg-border, #d8dde3); border-radius: 5px;
+  background: var(--sg-surface, #fff); cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.sgevt-dur:hover { border-color: var(--sg-accent, #2f6fb3); }
+.sgevt-dur--active {
+  background: var(--sg-accent, #2f6fb3); color: #fff;
+  border-color: var(--sg-accent, #2f6fb3);
+}
+
+/* ── Disclaimer (always visible) ───────────────────────────────────────────── */
+.sgevt-disclaimer {
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem; line-height: 1.35;
+  color: var(--sg-muted, #6b7480);
+  border-top: 1px dashed var(--sg-border, #d8dde3);
+  padding-top: 0.4rem;
+}
