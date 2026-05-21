@@ -59,3 +59,59 @@ Run started: 2026-05-21. Branch: `rebuild/phases-b-to-f` (off `docs/phase-a-arch
 **Chose:** Parallel subagents write only new modules under their own directories; the orchestrator wires `index.html` to the new shell during the serial B.3 coherence merge. The existing `index.html` and `src/stormgrid*.js` stay untouched until then, so the current app keeps working.
 **Reason:** §3 — never fan out writes to the same file. Keeps the tree buildable at every commit.
 **Reversibility:** index.html change is one commit, revertible.
+
+### B-009 — Map host layers split into four modules, owns the single Leaflet instance (B.2 slice d)
+**Q:** How to structure the map host (`src/map/`) so the dominant map surface (docs/02 §1) renders purely from store state, consolidates today's two legends + two readouts into one each (docs/02 §7, §11), and stays free of data fetching this phase?
+**Options:** (a) one monolithic map module mirroring today's stormgridCatchmentMap.js + stormgridCumulativeOverlay.js; (b) split into `mapHost.js` (owns the Leaflet instance + store wiring), `layers.js` (boundary + raster), `legend.js` (one legend), `hoverReadout.js` (one readout), `map.css`.
+**Chose:** (b). `mountMap(container, store)` creates and owns ONE `L.map`, composes the layers/legend/readout as independent factories, subscribes to `select.{windowResult,location,layers,colourMode,phase}`, and returns `{ destroy }`. Raster is a placeholder this phase: it draws `windowResult.raster.{pngRef, leafletBounds}` if present and nothing otherwise — no fetching (that is the adapter + B.3).
+**Reason:** AGENTS.md §2.6 modular-from-commit-one; matches docs/03 §2 Map Layer component tree. Disjoint factories make the time-scrubber and the real grid lookup pluggable without rework.
+**Reversibility:** New files under `src/map/` only; nothing else imports them yet (B.3 wires them). Deletable as a unit.
+
+### B-010 — Raster on a dedicated pane z350 below polygons z400; legend/hover parameterised by "frame or window"
+**Q:** How to set raster z-order so polygon clicks + hover still register, and how to avoid blocking the future time-scrubber?
+**Chose:** Raster `L.imageOverlay` on a dedicated pane `stormgridRainfallRasterPane` at z 350 (basemap 200 < raster 350 < polygons 400, salvaged from stormgridCumulativeOverlay.js:26-28) with `pointerEvents:'none'` so mousemove/click fall through to the polygon pane. The legend's `rangeFor()` and the hover readout's `lookup()` both take a `frame` descriptor (`{kind:'window'}` today, `{kind:'frame',index,iso}` later). A `.stormgrid-scrubber-mount` strip is reserved (zero-height) along the map's bottom edge.
+**Reason:** docs/02 §7 z-order + "do not bind legend/hover to a single static frame in a way that blocks per-frame scrubbing." The probe-point abstraction (docs/02 §9) keeps the readout input swappable for a mobile tap pass.
+**Reversibility:** Pane name + z constants are one-line changes; the reserved strip is inert until a scrubber mounts.
+
+### B-011 — Gap-honest hover: "no coverage here" / "outside data extent", never "0 mm"
+**Q:** How does the single readout surface a missing-data cell?
+**Chose:** The readout renders three distinct states from the grid lookup's `{in_bounds, has_coverage, depth_mm}`: covered → `"<x.x> mm"`; `in_bounds && !has_coverage` (or `depth_mm==null`) → `"no coverage here"`; `!in_bounds` → `"outside data extent"`. A null depth is never coerced to a number.
+**Reason:** Gap-honesty red line (docs/02 §7, docs/04 §1 rule 2). A no-coverage cell reading "0 mm" would silently fabricate an observation.
+**Reversibility:** Pure presentation; the source `null`/`has_coverage` semantics come from the adapter contract and are unchanged.
+
+### B-012 — Lizard adapter raster is caller-supplied, never fabricated (B.2 slice c)
+**Q:** The precomputed `catchment_rainfall_*.json` files are per-catchment scalar stats with no grid/PNG; the grid+PNG live in a separate preview overlay. Where does the adapter get `raster`?
+**Chose:** `getWindow` sets `raster: null` unless the caller passes the separate preview overlay; the mapper never invents a grid. `'synthetic-preview-overlay'` warning fires only when a preview raster is actually carried.
+**Reason:** Inventing a spatial grid from per-catchment scalars would breach gap-honesty. The per-catchment schema simply has no grid.
+**Reversibility:** When `RadarAdapter` (or a real overlay) supplies a grid, the same field populates; no shape change.
+
+### B-013 — P-2 sanity envelope set at 0–400 mm/3h (B.2 slice c)
+**Q:** What plausible range guards the assumed Lizard mm/3h unit (P-2)?
+**Chose:** 0 mm lower, 400 mm/3h upper (near world-record 3h point intensity). A violation does not throw — it adds a `'sanity-envelope-violation'` warning and forces confidence to `low`.
+**Reason:** Catches order-of-magnitude unit/temporal errors (metres-as-mm, cumulative-in-per-interval-slot) without rejecting genuinely extreme storms. It is a tripwire, NOT vendor confirmation (P-2 stays ASSERTED).
+**Reversibility:** One constant; relax/keep as a regression guard when P-2 clears.
+
+### B-014 — `listEventCandidates` stubbed empty in the precomputed adapter (B.2 slice c)
+**Q:** Should the Lizard adapter return event candidates now?
+**Chose:** Empty async-iterable stub with a TODO; the on-the-fly AEP event scan is Phase C (Event Layer).
+**Reason:** Faking events would violate the no-fabrication red line; precomputed scalars are not an event scan.
+**Reversibility:** Phase C implements the real scan behind the same method.
+
+### B-015 — Per-catchment frameLog derived from the window log + the catchment's missing-frame count (B.2 slice c)
+**Q:** The precomputed frame log is window-level (no per-catchment per-frame mean); the validator reconciles `framesMissing` against the frameLog. How to satisfy it honestly?
+**Chose:** The mapper reclassifies the trailing N frames of the catchment series as `missing` to match the catchment's `frames_missing` count; present-frame `meanMm` is honestly `null` (not fabricated). Current sample data has 0 missing everywhere, so this is structural-correctness only.
+**Reason:** Keeps the contract's coverage↔frameLog reconciliation true without inventing per-catchment per-frame values.
+**Reversibility:** A richer source (per-catchment per-frame means) would replace the derivation with real positions.
+
+### B-016 — Out-of-scope path defaults removed from build scripts; manifest.json left as historical provenance (B.2 slice e)
+**Q:** The audit flagged three out-of-scope path references. Which are editable?
+**Chose:** Parameterised `scripts/build_catchment_ifd.py` (`STORMGRID_PLUVIO_ROOT`) and `scripts/build_asset_snapshot.py` (`STORMGRID_ASSET_SOURCE`) to env-vars with NO baked-in default (error if unset); added `.env.example`. Left `data/catchments/manifest.json` untouched — it is GENERATED provenance metadata recording how the data was built, not editable source; it should be regenerated by its out-of-repo build step once the env var is used.
+**Follow-ups flagged:** `src/stormgridIfdPanel.js:73` still echoes the old `C:\…\fonzi` path in a UI hint string (src/ was out of this slice's scope) and `docs/asset_data_schema.md:22` documents the old `D:\Packaging\…` path — both to be fixed in a later slice (the IfdPanel hint when that panel is rebuilt in Phase C; the doc in Phase E cleanup).
+**Reason:** No in-repo *source* file should carry an out-of-scope path literal; generated records are a separate concern.
+**Reversibility:** Env-var wiring is local to the two scripts; `.env.example` is documentation.
+
+### B-017 — B.3 coherence merge: index.html wired to the new app; browser render verification deferred
+**Q:** How to confirm the four B.2 slices plug together, given no browser is available in this run?
+**Chose:** Added `src/app.js` (store + persistence + URL routing + shell + map host + Lizard adapter) and pointed `index.html` at it (CSP/Leaflet/html2canvas preserved; old `src/stormgridUi.js` shell superseded, removed in Phase E). Verified at the module-graph level under node: all 15 modules `node --check` clean, the full graph imports without missing exports or top-level DOM access, the adapter registers and `describe()` returns the placeholder-gated descriptor, and the store/URL/validator smoke tests pass.
+**Reason:** Static + module-graph verification is what disk allows; actual in-browser rendering (does the workspace lay out, does the map draw boundaries) cannot be exercised here.
+**Reversibility:** All additive; `index.html` is one revertible commit. **Open:** a browser smoke check of the mounted skeleton is an outstanding verification item for Phase F or a manual pass.

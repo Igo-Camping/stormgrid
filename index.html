@@ -6,45 +6,34 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data: blob: https://*.basemaps.cartocdn.com; connect-src 'self' https://*.basemaps.cartocdn.com https://nominatim.openstreetmap.org; font-src 'self' https://cdnjs.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <meta name="referrer" content="strict-origin-when-cross-origin"/>
 <link rel="icon" href="data:,"/>
-<title>Stormgrid — Catchment Rainfall Preview</title>
+<title>Stormgrid — Spatial Rainfall Analysis</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <link rel="stylesheet" href="./stormgrid.css"/>
+<link rel="stylesheet" href="./src/shell/shell.css"/>
+<link rel="stylesheet" href="./src/map/map.css"/>
+<style>
+  html, body { height: 100%; margin: 0; }
+  #stormgrid-app { height: 100vh; display: flex; flex-direction: column; }
+  .sg-error { padding: 1rem; color: #b00020; font: 14px/1.4 system-ui, sans-serif; }
+</style>
 </head>
 <body>
-<div class="sg-staging-banner" role="status" aria-live="polite">
-  Uncalibrated rainfall product · not engineering rainfall · Stormgauge AEP/IFD logic remains authoritative.
-</div>
-
-<main class="sg-page">
-  <header class="sg-page__head">
-    <h1 class="sg-page__title">Stormgrid — Catchment Rainfall Preview</h1>
-    <p class="sg-page__lede">
-      Click a catchment on the map. Rainfall stats are computed locally from the
-      Lizard precipitation archive and shipped as a small static JSON. Stormgrid
-      runs independently of Stormgauge.
-    </p>
-  </header>
-
-  <section id="stormgrid-host" class="sg-host" aria-label="Stormgrid shell"></section>
-
-  <footer class="sg-page__foot">
-    <p>
-      Catchment polygons are derived from a raster export and are flagged
-      <code>is_authoritative: false</code>. Rainfall is from
-      <code>lizard_precipitation_australia</code>, uncalibrated, mm per 3 h.
-    </p>
-  </footer>
-</main>
-
+<!-- Stormgrid rebuild (Phases B-F) mounts the three-column workspace here.
+     The pre-rebuild shell (src/stormgridUi.js) is superseded; it remains in git
+     history (branches main / docs/phase-a-architecture) and is removed in the
+     Phase E cleanup. -->
+<div id="stormgrid-app"></div>
 <script type="module">
-  import { mountStormgridShell } from './src/stormgridUi.js';
-  const host = document.getElementById('stormgrid-host');
+  import { mountStormgridApp } from './src/app.js';
+  const container = document.getElementById('stormgrid-app');
   try {
-    window.__stormgrid = mountStormgridShell(host);
+    const handle = mountStormgridApp(container);
+    window.__stormgrid = window.__stormgrid || {};
+    window.__stormgrid.app = handle; // preserve any window.__stormgrid.map set by the map host
   } catch (err) {
-    host.innerHTML = '<p class="sg-error">Stormgrid shell failed to mount: '
+    container.innerHTML = '<p class="sg-error">Stormgrid failed to mount: '
       + String(err && err.message ? err.message : err) + '</p>';
     console.error(err);
   }
