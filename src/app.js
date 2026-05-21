@@ -16,6 +16,11 @@ import './adapters/lizardArchiveAdapter.js'; // self-registers 'lizard-archive' 
 import { mountWorkspace } from './shell/workspace.js';
 import { createRouter } from './shell/router.js';
 import { mountMap } from './map/mapHost.js';
+import { createAggregationController } from './aggregation/aggregationController.js';
+import { mountLocationSection } from './location/locationSection.js';
+import { mountSummaryStats } from './analysis/summaryStats.js';
+import { mountConfidenceChip } from './methodology/confidenceChip.js';
+import { mountMethodologyPanel } from './methodology/methodologyPanel.js';
 
 const DEFAULT_SOURCE_ID = 'lizard-archive';
 
@@ -38,15 +43,49 @@ export function mountStormgridApp(container) {
   }
   const source = createSourceAdapter(DEFAULT_SOURCE_ID);
 
-  // Mount the shell, injecting the map host into the centre stage. Other regions
-  // remain honest placeholders until their Phase C components exist.
+  // Mount the shell, injecting each Phase C layer component into its region.
+  // The map host owns the centre stage; the spine gets Location; the results
+  // panel gets Summary stats + the always-visible Confidence chip. Regions with
+  // no component yet (event, layers) keep their honest placeholders.
   let mapHandle = null;
+  const layerHandles = [];
   const workspace = mountWorkspace(container, store, {
     map: (bodyEl) => { mapHandle = mountMap(bodyEl, store); },
+    location: (bodyEl) => { layerHandles.push(mountLocationSection(bodyEl, store)); },
+    summary: (bodyEl) => { layerHandles.push(mountSummaryStats(bodyEl, store)); },
+    confidence: (bodyEl) => { layerHandles.push(mountConfidenceChip(bodyEl, store)); },
   });
 
-  // URL <-> context routing; hydrates the context from the URL on start.
-  const router = createRouter(store);
+  // The aggregation controller is the data-flow spine: on a timeframe change it
+  // calls source.getWindow and dispatches the validated result (or an error).
+  const aggregation = createAggregationController(store, source);
+  aggregation.start();
+
+  // Methodology is a routed surface (never a modal): mounted into an overlay on
+  // the workspace when the URL routes to #methodology, destroyed on close. The
+  // map stays visible behind it (docs/02 §6).
+  const methodologyOverlay = document.createElement('div');
+  methodologyOverlay.className = 'sg-method-overlay';
+  methodologyOverlay.hidden = true;
+  workspace.root.appendChild(methodologyOverlay);
+  let methodologyHandle = null;
+
+  const router = createRouter(store, {
+    onSurfaceChange: (surface) => {
+      if (surface === 'methodology') {
+        methodologyOverlay.hidden = false;
+        if (!methodologyHandle) {
+          methodologyHandle = mountMethodologyPanel(methodologyOverlay, store, {
+            closeMethodology: () => router.closeSurface(),
+          });
+        }
+      } else {
+        if (methodologyHandle) { methodologyHandle.destroy(); methodologyHandle = null; }
+        methodologyOverlay.hidden = true;
+        // 'labs' surface is not implemented yet (deferred); the overlay stays hidden.
+      }
+    },
+  });
   router.start();
 
   return {
@@ -54,8 +93,12 @@ export function mountStormgridApp(container) {
     source,
     workspace,
     router,
+    aggregation,
     destroy() {
       if (router && typeof router.stop === 'function') router.stop();
+      if (aggregation && typeof aggregation.stop === 'function') aggregation.stop();
+      if (methodologyHandle && typeof methodologyHandle.destroy === 'function') methodologyHandle.destroy();
+      for (const h of layerHandles) { if (h && typeof h.destroy === 'function') h.destroy(); }
       if (mapHandle && typeof mapHandle.destroy === 'function') mapHandle.destroy();
       workspace.destroy();
     },

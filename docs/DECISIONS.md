@@ -115,3 +115,49 @@ Run started: 2026-05-21. Branch: `rebuild/phases-b-to-f` (off `docs/phase-a-arch
 **Chose:** Added `src/app.js` (store + persistence + URL routing + shell + map host + Lizard adapter) and pointed `index.html` at it (CSP/Leaflet/html2canvas preserved; old `src/stormgridUi.js` shell superseded, removed in Phase E). Verified at the module-graph level under node: all 15 modules `node --check` clean, the full graph imports without missing exports or top-level DOM access, the adapter registers and `describe()` returns the placeholder-gated descriptor, and the store/URL/validator smoke tests pass.
 **Reason:** Static + module-graph verification is what disk allows; actual in-browser rendering (does the workspace lay out, does the map draw boundaries) cannot be exercised here.
 **Reversibility:** All additive; `index.html` is one revertible commit. **Open:** a browser smoke check of the mounted skeleton is an outstanding verification item for Phase F or a manual pass.
+
+---
+
+## Phase C
+
+### C-001 — Phase C fanned out in two waves by dependency
+**Q:** Which layers can be built in parallel?
+**Chose:** Wave 1 (parallel, disjoint dirs): Location (`src/location/`), Aggregation (`src/aggregation/`), Analysis (`src/analysis/`), Methodology (`src/methodology/`). Wave 2: Event, Export, full-raster Map — they depend on Wave 1 (Event needs Analysis's AEP; Export needs the footprint + Analysis/Methodology; Map raster needs Aggregation output).
+**Reason:** AGENTS.md §3 — disjoint paths run parallel, dependents serialise.
+**Reversibility:** Sequencing only.
+
+### C-002 — Session limit interrupted 3 of 4 Wave-1 subagents; verified on disk, not by report
+**Q:** Three subagents (Aggregation, Analysis, Methodology) hit a session limit and returned no summary. Trust the files?
+**Chose:** All three had completed their writes before the limit (timestamps + all files present). Rather than trust unseen reports, I verified independently: `node --check` on all 12 files, ran their own smoke tests (Analysis 12/12, Aggregation after a fix), and inspected the highest-risk file (Analysis ARF gate).
+**Reason:** Report-faithfully discipline — never claim a slice is done on the strength of an unseen summary.
+**Reversibility:** N/A — verification.
+
+### C-003 — Calibration smoke tolerance corrected to match the impl's 3 dp rounding
+**Q:** `aggregation/__smoke__.mjs` asserted the calibrated mean equals `raw*factor` within `1e-6`, but `scaleAreal` rounds calibrated mm to 3 dp (`round3`) — the assertion failed on real (non-integer) means.
+**Chose:** Fixed the TEST to compare against `round3(raw*factor)`, not the impl. Rounding mm depths to 0.001 mm is correct and used consistently across the module.
+**Reason:** The impl behaviour is right; the test tolerance was the bug. Loosening it to the documented quantum is honest, not masking. Aggregation smoke now ALL PASS.
+**Reversibility:** Test-only edit.
+
+### C-004 — Location: a miss-containment resolves to the point, not a coerced catchment (from the Location slice)
+**Q:** When an address/point doesn't fall inside any catchment, what is selected?
+**Chose:** Select the `{lat,lon}` point LocationRef (never a far catchment); nearest-centroid fallback keeps `medium` confidence with a "geometric guess" reason; far → `low` with `catchmentId:null`. Area/draw selection is a documented stub pending a Leaflet draw control in the Map layer (no fabricated area).
+**Reason:** Preserves the never-guess / report-gaps discipline while still advancing the workflow.
+**Reversibility:** Area draw is inert until wired; the point path is standard.
+
+### C-005 — Analysis red lines verified by the layer's own smoke (12/12)
+**Q:** Does the Analysis layer uphold the areal-vs-point red line and the placeholder gate?
+**Verified:** Its smoke proves: `applyArf(observedArealMean, …)` throws; the observed mean is unchanged after `computeAep` (compared directly, never reduced); ARF reduces the point side only; and `computeAep` returns `gated:true / aepBand:null` with the placeholder reason when `source.isPlaceholder`. Gap honesty (missing mean stays null, no fabricated critical duration) also asserted.
+**Reason:** This is the most expensive place to be wrong (docs/01 §7); it is enforced by branded types + a closed gate, and tested.
+**Reversibility:** N/A.
+
+### C-006 — SummaryStats mounted without injected IFD/ARF inputs (gate suppresses AEP anyway)
+**Q:** The summary's "~AEP (indicative)" needs IFD + ARF inputs. Wire them now?
+**Chose:** Mount `mountSummaryStats(bodyEl, store)` without `opts.computeAepInputs`. The active Lizard source is `isPlaceholder:true`, so the AEP path is gated off and shows the placeholder reason / "—" regardless. Inject real IFD+ARF inputs when P-1 clears (the gate opens).
+**Reason:** No engineering-grade AEP can be produced under placeholder coefficients; wiring inputs now would be dead code behind a closed gate.
+**Reversibility:** One opts argument when the gate opens.
+
+### C-007 — Methodology surfaced via URL hash through the router; overlay mounted in app.js
+**Q:** How is the always-visible-never-modal Methodology surface (docs/02 §6) wired?
+**Chose:** The confidence chip's "Methodology ▸" sets `#methodology`; `router.onSurfaceChange('methodology')` mounts `mountMethodologyPanel` into an overlay appended to the workspace root; closing clears the hash and destroys the panel. The map stays in the DOM behind it — not a modal.
+**Reason:** Single shared channel (the hash) keeps chip/panel/router decoupled; matches docs/02 §2 routable surfaces.
+**Reversibility:** Overlay + handler localised to app.js.
