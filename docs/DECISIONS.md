@@ -47,3 +47,15 @@ Run started: 2026-05-21. Branch: `rebuild/phases-b-to-f` (off `docs/phase-a-arch
 **Chose:** (b) runtime-branded value objects + JSDoc.
 **Reason:** Keeps the approved no-build architecture; makes "pass an areal value where a point is expected" throw at runtime rather than be a silent flag mistake — which is the actual protection the red line wants.
 **Reversibility:** JSDoc typedefs can be promoted to TS later if a build step is ever added.
+
+### B-007 — Build the shared store before the B.2 fan-out (not as a parallel slice)
+**Q:** The prompt's B.2 lists five parallel slices including the shared store. But the shell, Lizard adapter, and map host all depend on the store's API.
+**Chose:** Build the store (`src/core/store.js`, `urlState.js`, `persistence.js`) serially first, then fan out the remaining four slices (shell, adapter, map host, containment) in parallel against the real store API.
+**Reason:** AGENTS.md §3 — slices touching the same shared state run sequentially. Letting three subagents code against a guessed store API in parallel would guarantee a costly coherence merge. The store is the shared state; everything else gets disjoint file ownership (core/ vs shell/ vs adapters/ vs map/ vs scripts/).
+**Reversibility:** N/A — sequencing only.
+
+### B-008 — `index.html` wired during coherence merge, not by a parallel subagent
+**Q:** Both the navigation shell and the map host need to be reachable from the page entry; `index.html` is a single shared file.
+**Chose:** Parallel subagents write only new modules under their own directories; the orchestrator wires `index.html` to the new shell during the serial B.3 coherence merge. The existing `index.html` and `src/stormgrid*.js` stay untouched until then, so the current app keeps working.
+**Reason:** §3 — never fan out writes to the same file. Keeps the tree buildable at every commit.
+**Reversibility:** index.html change is one commit, revertible.
