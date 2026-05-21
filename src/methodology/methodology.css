@@ -1,0 +1,252 @@
+/* methodology.css — styles for the Stormgrid METHODOLOGY LAYER (src/methodology/*).
+   Scoped to .sg-chip and .sg-method; does NOT touch stormgrid.css, map.css, or
+   shell.css. Palette + type follow the existing map.css convention (teal accents,
+   system-ui). The chip is a compact always-visible fixture; the panel is a
+   self-contained side/over surface the shell positions — it carries NO backdrop
+   and does NOT cover the map (docs/02 §6). */
+
+/* Severity colours — re-used by both the chip and the panel. */
+:root {
+  --sg-conf-high: #3CB371;
+  --sg-conf-moderate: #E0A030;
+  --sg-conf-low: #C0392B;
+  --sg-ink: #16323a;
+  --sg-teal: #00585b;
+  --sg-warn-bg: #fdf3ec;
+  --sg-severe-bg: #fbebe8;
+  --sg-severe-border: #C0392B;
+}
+
+/* ── Confidence chip (always visible) ─────────────────────────────────────── */
+.sg-chip {
+  font: 13px/1.4 system-ui, sans-serif;
+  color: var(--sg-ink);
+  display: block;
+}
+
+.sg-chip__noresult {
+  margin: 0;
+  padding: 8px 10px;
+  color: #5b6b71;
+  font-style: italic;
+  background: #f3f6f7;
+  border-radius: 6px;
+}
+
+.sg-chip__meta { margin: 0; }
+.sg-chip__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(0, 88, 91, 0.08);
+}
+.sg-chip__dt { color: #5b6b71; margin: 0; }
+.sg-chip__dd { margin: 0; text-align: right; font-weight: 500; }
+
+.sg-chip__tier { display: inline-flex; align-items: center; gap: 6px; }
+.sg-chip__dots { letter-spacing: 1px; }
+.sg-chip__tierlabel--high { color: var(--sg-conf-high); }
+.sg-chip__tierlabel--moderate { color: var(--sg-conf-moderate); }
+.sg-chip__tierlabel--low { color: var(--sg-conf-low); }
+
+.sg-chip__row--gap .sg-chip__dd,
+.sg-chip__missingcount--gap { color: var(--sg-conf-low); font-weight: 600; }
+
+.sg-chip__missing { display: inline-flex; align-items: baseline; gap: 8px; }
+.sg-chip__viewlog,
+.sg-chip__methodology {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid rgba(0, 88, 91, 0.4);
+  background: #fff;
+  color: var(--sg-teal);
+  border-radius: 5px;
+  padding: 2px 8px;
+}
+.sg-chip__viewlog:hover,
+.sg-chip__methodology:hover { background: #eef6f6; }
+.sg-chip__methodology {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 6px 10px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ── Chip warnings (P-1 / P-4 / preview) — prominent, never hidden ─────────── */
+.sg-chip__warnings { list-style: none; margin: 10px 0 0; padding: 0; }
+.sg-chip__warning {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--sg-warn-bg);
+  border-left: 3px solid var(--sg-conf-moderate);
+  border-radius: 0 4px 4px 0;
+  font-size: 12px;
+}
+.sg-chip__warning--severe {
+  background: var(--sg-severe-bg);
+  border-left-color: var(--sg-severe-border);
+  font-weight: 600;
+  color: var(--sg-conf-low);
+}
+
+/* ── Methodology panel (routed side/over surface — NOT a modal) ───────────── */
+.sg-method {
+  font: 13px/1.45 system-ui, sans-serif;
+  color: var(--sg-ink);
+  background: #fff;
+  /* Sized to dock beside/over the results column; NO position:fixed full-screen,
+     NO backdrop — the shell decides exact placement, the map stays visible. */
+  display: flex;
+  flex-direction: column;
+  max-width: 420px;
+  width: 100%;
+  height: 100%;
+  border-left: 1px solid rgba(0, 88, 91, 0.2);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08);
+  overflow: auto;
+}
+
+.sg-method__head {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--sg-teal);
+  color: #fff;
+}
+.sg-method__title { margin: 0; font-size: 15px; }
+.sg-method__close {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: transparent;
+  color: #fff;
+  border-radius: 5px;
+  padding: 3px 9px;
+}
+.sg-method__close:hover { background: rgba(255, 255, 255, 0.15); }
+
+.sg-method__lede {
+  margin: 0;
+  padding: 10px 14px;
+  color: #5b6b71;
+  background: #f3f6f7;
+  font-size: 12px;
+}
+.sg-method__content { padding: 6px 14px 18px; }
+
+.sg-method__noresult {
+  margin: 14px 0;
+  color: #5b6b71;
+  font-style: italic;
+}
+
+.sg-method__section {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0, 88, 91, 0.1);
+}
+.sg-method__h {
+  margin: 0 0 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sg-teal);
+}
+
+.sg-method__grid { margin: 0; }
+.sg-method__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+}
+.sg-method__dt { color: #5b6b71; margin: 0; }
+.sg-method__dd { margin: 0; text-align: right; }
+
+.sg-method__conf { margin: 0 0 6px; }
+.sg-method__tier--high { color: var(--sg-conf-high); }
+.sg-method__tier--moderate { color: var(--sg-conf-moderate); }
+.sg-method__tier--low { color: var(--sg-conf-low); }
+
+.sg-method__reasons,
+.sg-method__limitations { margin: 0; padding-left: 18px; }
+.sg-method__reasons li { margin: 3px 0; }
+
+.sg-method__empty { margin: 4px 0; color: #5b6b71; font-style: italic; }
+
+.sg-method__warn {
+  margin: 8px 0 0;
+  padding: 7px 9px;
+  background: var(--sg-warn-bg);
+  border-left: 3px solid var(--sg-conf-moderate);
+  border-radius: 0 4px 4px 0;
+  font-size: 12px;
+}
+
+.sg-method__badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.sg-method__badge--severe { background: var(--sg-severe-bg); color: var(--sg-conf-low); }
+.sg-method__badge--ok { background: #eaf6ef; color: var(--sg-conf-high); }
+
+/* Limitations list — placeholder line leads as severe. */
+.sg-method__limitations { list-style: none; padding: 0; }
+.sg-method__limitation {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--sg-warn-bg);
+  border-left: 3px solid var(--sg-conf-moderate);
+  border-radius: 0 4px 4px 0;
+  font-size: 12px;
+}
+.sg-method__limitation--severe {
+  background: var(--sg-severe-bg);
+  border-left-color: var(--sg-severe-border);
+  font-weight: 600;
+  color: var(--sg-conf-low);
+}
+
+/* ── Per-frame log (valid / partial / missing) — salvaged presentation ─────── */
+.sg-method__framecounts { font-size: 12px; }
+.sg-method__count--valid { color: var(--sg-conf-high); }
+.sg-method__count--partial { color: var(--sg-conf-moderate); }
+.sg-method__count--missing { color: var(--sg-conf-low); }
+
+.sg-method__framelog { margin-top: 6px; }
+.sg-method__framesummary { cursor: pointer; font-weight: 500; }
+
+.sg-method__frametable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.sg-method__frametable th,
+.sg-method__frametable td {
+  text-align: left;
+  padding: 3px 6px;
+  border-bottom: 1px solid rgba(0, 88, 91, 0.08);
+}
+.sg-method__mm { text-align: right; font-variant-numeric: tabular-nums; }
+
+.sg-method__status {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.sg-method__status--valid { background: #eaf6ef; color: var(--sg-conf-high); }
+.sg-method__status--partial { background: var(--sg-warn-bg); color: var(--sg-conf-moderate); }
+.sg-method__status--missing { background: var(--sg-severe-bg); color: var(--sg-conf-low); }
+.sg-method__framerow--missing { background: rgba(192, 57, 43, 0.04); }
