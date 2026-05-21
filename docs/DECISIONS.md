@@ -161,3 +161,27 @@ Run started: 2026-05-21. Branch: `rebuild/phases-b-to-f` (off `docs/phase-a-arch
 **Chose:** The confidence chip's "Methodology ▸" sets `#methodology`; `router.onSurfaceChange('methodology')` mounts `mountMethodologyPanel` into an overlay appended to the workspace root; closing clears the hash and destroys the panel. The map stays in the DOM behind it — not a modal.
 **Reason:** Single shared channel (the hash) keeps chip/panel/router decoupled; matches docs/02 §2 routable surfaces.
 **Reversibility:** Overlay + handler localised to app.js.
+
+### C-008 — "Last 10 Major Events": cap 10, scans committed snapshots, ranking degrades when the AEP gate is closed
+**Q:** How does on-the-fly event detection behave today, given placeholder ARF and a precomputed (not frame-history) archive?
+**Chose:** Cap = **10** (docs/02 §5.2; the legacy warmed cache used 12). The scanner enumerates the committed per-catchment windows + archive entries for the location (the Lizard adapter's `listEventCandidates` is a stub, B-014, so the scanner reads the archive directly), computes AEP per candidate, and STREAMS ranked results into the store. With the gate CLOSED (placeholder coefficients) it sets `aepBand=null`, ranks by catchment-mean severity (mm), and labels each: **"AEP indicative unavailable — placeholder coefficients"**. Gappy windows get a rank-only penalty (raw mm preserved) so they can't silently out/under-rank a complete window. Per-location memo keyed by `catchmentId + source.buildVersion`.
+**Reason:** No fabricated AEP/return-period (red line); on-demand-first with caching as a transparent accelerator (docs/03 §5).
+**Reversibility:** When P-1 clears, inject IFD/ARF providers into `createEventScanner` and the same stream ranks by AEP — no shape change. A real `RadarAdapter` frame history replaces the enumerator behind the same `EventCandidate` output.
+
+### C-009 — KNOWN GAP: selecting a major event currently yields an honest ERROR (event→window resolution not wired)
+**Q:** Selecting a major event dispatches `setTimeframe({kind:'event',eventId})`, but `lizardArchiveAdapter.getWindow` throws on an event-kind timeframe — so the aggregation controller lands ERROR.
+**Chose:** Leave it as an honest ERROR state for now (no crash, no fabrication) and DEFER event→window resolution. Manual timeframe selection (window+duration) is the fully-working primary path. Per the run's stuck-slice philosophy, one bounded integration gap does not stop the run.
+**Reason:** A clean fix (resolve an eventId to its window+duration) needs the archive-entry→window mapping; doing it hastily risks the URL event/window semantics. Better deferred and flagged than bodged.
+**Reversibility:** Add an event→window resolver in the adapter or controller; the event candidates already carry their window descriptor. Tracked as a Phase-C follow-up in 99_FINAL_REVIEW.
+
+### C-010 — Export: footprint v2 + print-to-PDF + honest stubs (no fabricated formats)
+**Q:** How to deliver "first-class engineering exports" on a no-build, CSP-locked static site without faking formats?
+**Chose:** New `stormgrid.event_footprint.v2` provenance master (branded areal values, single-window result) — every export reads from it; `source/coverage/confidence/calibration/warnings` travel verbatim, gaps stay null. Working: CSV, JSON, GeoJSON (salvaged), PNG (html2canvas, phantom SVG fallback removed). Greenfield: HTML report (self-contained) + **PDF via a print stylesheet + `window.print()`** on the HTML report (NO new CDN library, NO CSP change). Honest STUBS that throw a clear "needs X" (never fake output): XLSX (needs SheetJS + CSP entry; may emit a real `.csv` interim), GeoTIFF raster (needs encoder + CSP), 12d (needs `.12da`/`.4ml` schema), DRAINS (needs import schema). Legacy `stormgridSnapshot.js`/`stormgridExports.js` superseded → Phase E delete-list.
+**Reason:** Provenance-carrying defensible outputs now; no library/CSP creep; no fabricated engineering formats (gap-honesty extends to "we don't have this format yet").
+**Reversibility:** Each stub names exactly what unlocks it; the PDF library path is stubbed if byte-exact PDFs are later needed.
+
+### C-011 — Map live spatial surface is the synthetic preview overlay, badged, until a real grid exists
+**Q:** The Lizard `windowResult.raster` is null (B-012). What does the map draw?
+**Chose:** `overlayLoader` loads the preview overlay (`data/overlays/cumulative/latest/`, `is_synthetic_preview:true`) and the map falls back to it ONLY while a `windowResult` is present, always badging it "Synthetic preview — not a real radar surface". The preview is NOT pushed into the store as a `windowResult` (it lacks coverage/frameLog/confidence and would fail validation). One legend + one hover bind to the grid's real mm range; no-coverage cells read "no coverage here", never "0 mm". No `windowResult` → "No rainfall raster for this selection", never a blank-settled map.
+**Reason:** It is the only spatial surface that exists; honesty requires the synthetic badge and keeping it out of the validated result path.
+**Reversibility:** When `RadarAdapter`/a real overlay supplies `windowResult.raster`, the same field populates and the fallback is bypassed (B-012).

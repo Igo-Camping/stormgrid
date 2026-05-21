@@ -18,9 +18,13 @@ import { createRouter } from './shell/router.js';
 import { mountMap } from './map/mapHost.js';
 import { createAggregationController } from './aggregation/aggregationController.js';
 import { mountLocationSection } from './location/locationSection.js';
+import { createEventScanner } from './event/eventScanner.js';
+import { mountEventSection } from './event/eventSection.js';
 import { mountSummaryStats } from './analysis/summaryStats.js';
+import { computeAep } from './analysis/aepEstimator.js';
 import { mountConfidenceChip } from './methodology/confidenceChip.js';
 import { mountMethodologyPanel } from './methodology/methodologyPanel.js';
+import { mountExportPanel } from './export/exportPanel.js';
 
 const DEFAULT_SOURCE_ID = 'lizard-archive';
 
@@ -49,11 +53,19 @@ export function mountStormgridApp(container) {
   // no component yet (event, layers) keep their honest placeholders.
   let mapHandle = null;
   const layerHandles = [];
+
+  // On-the-fly event scanner. computeAep is passed so candidates carry an
+  // indicative AEP band when the gate is open; under the placeholder source it
+  // returns gated and the scanner ranks by catchment-mean severity instead.
+  const eventScanner = createEventScanner({ source, computeAep });
+
   const workspace = mountWorkspace(container, store, {
     map: (bodyEl) => { mapHandle = mountMap(bodyEl, store); },
     location: (bodyEl) => { layerHandles.push(mountLocationSection(bodyEl, store)); },
+    event: (bodyEl) => { layerHandles.push(mountEventSection(bodyEl, store, { scanner: eventScanner })); },
     summary: (bodyEl) => { layerHandles.push(mountSummaryStats(bodyEl, store)); },
     confidence: (bodyEl) => { layerHandles.push(mountConfidenceChip(bodyEl, store)); },
+    resultsExport: (bodyEl) => { layerHandles.push(mountExportPanel(bodyEl, store)); },
   });
 
   // The aggregation controller is the data-flow spine: on a timeframe change it

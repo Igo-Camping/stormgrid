@@ -43,3 +43,20 @@ The accumulation assumes each Lizard GeoTIFF frame is "mm per 3 h interval." Unc
 `data/gauge_observations.json` is `is_synthetic: true`. The calibration framework is correct and raw-preserving, but calibrated output is illustrative until real gauge observations are wired (`build_gauge_observations.py` fetch is a stub). Calibrated output must be labelled "synthetic gauges" until then.
 
 **To clear:** Implement the real gauge fetch (BoM CDO / MHL-WISKI per the stub's TODO) and replace the synthetic file. The refuse-to-fabricate guard in the builder stays.
+
+---
+
+## P-5 — XLSX export needs a spreadsheet library + CSP entry  ·  status: BLOCKED (stubbed)
+
+The XLSX exporter is an honest stub: client-side `.xlsx` generation needs SheetJS/exceljs (a `script-src` CDN entry in `index.html` CSP). Until then the export panel offers a real `.csv` interim (never a CSV mislabelled `.xlsx`). CSV/JSON/GeoJSON already cover defensible tabular/geospatial output.
+**To clear:** Add SheetJS via CDN + CSP `script-src` entry, implement `xlsx.js`. (CSP change is a deliberate decision, not made autonomously.)
+
+## P-6 — 12d and DRAINS exports need exact target-format specs  ·  status: BLOCKED (stubbed)
+
+No `.12da`/`.4ml` (12d) or DRAINS import schema exists in-repo to build against, and no sample that imports cleanly. The exporters are honest stubs that state what's needed. Building these blind would produce files that fail to import — worse than absent.
+**To clear:** Supply the exact 12d and DRAINS rainfall/time-series import schemas + a known-good sample that imports cleanly into each tool; then implement the exporters and validate against the sample.
+
+## P-7 — Geospatial raster (GeoTIFF) export needs an encoder + real grid  ·  status: BLOCKED (stubbed)
+
+GeoTIFF export needs a client-side encoder (geotiff.js + CSP entry) and a real per-window raster grid. Today the only grid is the synthetic preview overlay (C-011) — exporting it as a GeoTIFF would imply a real radar product. Deferred until a real `windowResult.raster` grid exists.
+**To clear:** A real raster grid in the SourceAdapter result (RadarAdapter or a real overlay) + a GeoTIFF encoder + CSP entry.
