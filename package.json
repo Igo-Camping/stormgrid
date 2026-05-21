@@ -5,6 +5,12 @@
   "description": "Stormgrid — catchment rainfall preview. Static site at https://stormgrid.pluviometrics.com.au/.",
   "type": "module",
   "scripts": {
+    "test":                "npm run test:core && npm run test:adapters && npm run test:aggregation && npm run test:analysis && npm run test:export && npm run test:arf",
+    "test:core":           "node src/core/__smoke__.mjs",
+    "test:adapters":       "node src/adapters/__smoke__.mjs",
+    "test:aggregation":    "node src/aggregation/__smoke__.mjs",
+    "test:analysis":       "node src/analysis/__smoke__.mjs",
+    "test:export":         "node src/export/__smoke__.mjs",
     "test:arf":            "node tests/run_arf_golden_tests.mjs",
     "test:arf:update":     "node tests/run_arf_golden_tests.mjs --update-status",
     "build:rainfall":      "python scripts/build_static_rainfall.py --build-standard-windows",

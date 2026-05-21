@@ -185,3 +185,26 @@ Run started: 2026-05-21. Branch: `rebuild/phases-b-to-f` (off `docs/phase-a-arch
 **Chose:** `overlayLoader` loads the preview overlay (`data/overlays/cumulative/latest/`, `is_synthetic_preview:true`) and the map falls back to it ONLY while a `windowResult` is present, always badging it "Synthetic preview — not a real radar surface". The preview is NOT pushed into the store as a `windowResult` (it lacks coverage/frameLog/confidence and would fail validation). One legend + one hover bind to the grid's real mm range; no-coverage cells read "no coverage here", never "0 mm". No `windowResult` → "No rainfall raster for this selection", never a blank-settled map.
 **Reason:** It is the only spatial surface that exists; honesty requires the synthetic badge and keeping it out of the validated result path.
 **Reversibility:** When `RadarAdapter`/a real overlay supplies `windowResult.raster`, the same field populates and the fallback is bypassed (B-012).
+
+---
+
+## Phase E
+
+### E-001 — Legacy `src/stormgrid*.js` NOT mass-deleted; only the dead doc removed
+**Q:** The audit's "rebuild/dead" lists imply removing the pre-rebuild modules. Delete all 25 `src/stormgrid*.js`?
+**Verified:** The rebuild **reuses** several legacy modules by import (salvage-by-reuse, not rewrite): `stormgridDataLoader.js` (adapter + event), `stormgridEventArchive.js` (event scanner), `stormgridCalibration.js` (aggregation), plus their transitive deps. Blanket deletion would break the build.
+**Chose:** Delete only `src/stormgridReadme.md` (explicitly-dead stale doc, audit §6 — imported by nothing). Keep all legacy `.js`. Defer targeted pruning of the genuinely-unreferenced legacy modules (e.g. `stormgridUi.js` and other now-superseded ones) to a focused follow-up that first computes the live-import closure from `app.js` and removes only what is provably unreachable.
+**Reason:** Reversibility/safety — deleting a still-imported module would break a tree the per-commit cadence is meant to keep buildable. Honoring the "each delete its own commit" intent for the one safe deletion; deferring the rest rather than risking a broken build.
+**Reversibility:** Everything is in git history; pruning is a later mechanical pass once the closure is confirmed (tracked in 99_FINAL_REVIEW).
+
+### E-002 — Contract test suite + unified `npm test`
+**Q:** What does "contracts airtight" mean here, with no test framework and no bundler?
+**Chose:** Added `src/core/__smoke__.mjs` (22 assertions: branded types incl. double-ARF throw, validator gap-honesty + reconciliation, the engineering gate, store phase machine + invalidation, URL round-trip). Wired `npm test` to run all node smokes (core, adapters, aggregation, analysis, export) + the ARF golden tests. Full suite green.
+**Reason:** The contracts (areal-vs-point, gap propagation, the gate, store transitions) are the load-bearing surfaces; they are now executable-tested and run as one command. UI behaviour stays lower-priority per the prompt.
+**Reversibility:** Tests + scripts are additive.
+
+### E-003 — Event scanner stays on the main thread for now; worker boundary deferred to RadarAdapter
+**Q:** docs/03 §6 puts the EventScanner in a worker. Move it now?
+**Chose:** No. Today's scan reads a handful of precomputed window JSONs + a few archive entries and streams async — it does not block meaningfully. Doc 03's worker recommendation targets the future `RadarAdapter` frame-aggregation (the genuinely heavy path). "Bundle size" is N/A (no bundler, no-build).
+**Reason:** A worker now would add structure for no measurable benefit on the precomputed data; the seam (streaming candidates) is already worker-friendly when a real frame history arrives.
+**Reversibility:** The scanner streams via callback/async-iterable; moving it behind a worker is a transport change, not a logic change.
