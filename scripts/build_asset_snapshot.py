@@ -20,9 +20,14 @@ The script:
   - refuses to overwrite an existing authoritative snapshot without
     --force
 
+The source CSV is operator-local and must be supplied at run time, either
+via the STORMGRID_ASSET_SOURCE environment variable or the --source
+argument. There is no baked-in default path.
+
 Usage:
-    python scripts/build_asset_snapshot.py \\
-        --source "D:/Packaging/data/assets_with_coords.csv"
+    set STORMGRID_ASSET_SOURCE=<ASSET_SOURCE_CSV>   # or export on POSIX
+    python scripts/build_asset_snapshot.py
+    python scripts/build_asset_snapshot.py --source <ASSET_SOURCE_CSV>
     python scripts/build_asset_snapshot.py --dry-run
     python scripts/build_asset_snapshot.py --force
 """
@@ -31,6 +36,7 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import re
 import sys
 from datetime import datetime, timezone
@@ -41,7 +47,11 @@ OUTPUT_DIR    = REPO_ROOT / "data" / "assets"
 OUTPUT_GEO    = OUTPUT_DIR / "stormwater_assets.geojson"
 OUTPUT_META   = OUTPUT_DIR / "asset_metadata.json"
 
-DEFAULT_SOURCE = Path(r"D:\Packaging\data\assets_with_coords.csv")
+# Operator-local source CSV. Read from the environment only — no baked-in
+# default. If neither STORMGRID_ASSET_SOURCE nor --source is supplied, the
+# script errors out (see main).
+_ENV_SOURCE = os.environ.get("STORMGRID_ASSET_SOURCE")
+DEFAULT_SOURCE = Path(_ENV_SOURCE) if _ENV_SOURCE else None
 
 OUTPUT_SCHEMA = "stormgrid.assets.geojson.v1"
 META_SCHEMA   = "stormgrid.asset_metadata.v1"
@@ -360,11 +370,16 @@ def build_feature(row: dict) -> dict | None:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--source", type=Path, default=DEFAULT_SOURCE,
-                   help=f"Council asset CSV export (default: {DEFAULT_SOURCE}).")
+                   help="Council asset CSV export. Defaults to the "
+                        "STORMGRID_ASSET_SOURCE environment variable.")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--force", action="store_true",
                    help="Overwrite an existing authoritative snapshot.")
     args = p.parse_args(list(argv) if argv is not None else None)
+
+    if args.source is None:
+        p.error("no source CSV: set STORMGRID_ASSET_SOURCE to the council asset "
+                "CSV export, or pass --source")
 
     src = args.source
     if not src.exists():

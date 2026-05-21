@@ -14,8 +14,14 @@ The result is **point IFD only** — ARF is not applied. The header
 records that explicitly so downstream consumers cannot mistake it
 for a catchment areal design rainfall.
 
+The pluvio data root is operator-local and must be supplied at run time,
+either via the STORMGRID_PLUVIO_ROOT environment variable or the
+--pluvio-root argument. There is no baked-in default path.
+
 Usage:
-    python scripts/build_catchment_ifd.py --pluvio-root "C:\\Users\\fonzi\\Weather App Folder"
+    set STORMGRID_PLUVIO_ROOT=<PLUVIO_ROOT>   # or export on POSIX
+    python scripts/build_catchment_ifd.py
+    python scripts/build_catchment_ifd.py --pluvio-root <PLUVIO_ROOT>
 """
 import argparse
 import json
@@ -39,16 +45,22 @@ DURATIONS_MIN = {
 }
 AEP_KEYS = ['1%', '2%', '5%', '20%']
 
-DEFAULT_PLUVIO_ROOT = os.environ.get(
-    'STORMGRID_PLUVIO_ROOT',
-    r'C:\Users\fonzi\Weather App Folder')
+# Operator-local pluvio data root. Read from the environment only — no
+# baked-in default. If neither STORMGRID_PLUVIO_ROOT nor --pluvio-root is
+# supplied, the script errors out (see parse_args).
+DEFAULT_PLUVIO_ROOT = os.environ.get('STORMGRID_PLUVIO_ROOT')
 
 
 def parse_args():
     ap = argparse.ArgumentParser(description=__doc__.split('\n', 1)[0])
     ap.add_argument('--pluvio-root', type=str, default=DEFAULT_PLUVIO_ROOT,
-                    help='Path to pluvio-stormgauge working tree (read-only).')
-    return ap.parse_args()
+                    help='Path to pluvio-stormgauge working tree (read-only). '
+                         'Defaults to the STORMGRID_PLUVIO_ROOT environment variable.')
+    args = ap.parse_args()
+    if not args.pluvio_root:
+        ap.error('no pluvio root: set STORMGRID_PLUVIO_ROOT to the pluvio data '
+                 'root, or pass --pluvio-root')
+    return args
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
