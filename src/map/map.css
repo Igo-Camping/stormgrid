@@ -1,0 +1,89 @@
+/* map.css — styles for the Stormgrid MAP HOST (src/map/*).
+   Scoped to .stormgrid-maphost and its descendants. Does NOT touch stormgrid.css.
+
+   LAYOUT CONTRACT (docs/02 §1): the map is the DOMINANT surface. The host fills
+   its parent region at 100% width and height — the shell is expected to give it a
+   flex/grid cell that grows. This is the deliberate inversion of today's fixed
+   460px tile (stormgrid.css:302-305): do NOT constrain the host to a fixed height. */
+
+.stormgrid-maphost {
+  position: relative;          /* positioned ancestor for the hover readout */
+  width: 100%;
+  height: 100%;
+  min-height: 360px;           /* a floor so it never collapses in a broken parent */
+  flex: 1 1 auto;              /* grow inside a flex parent (the shell's MapStage) */
+}
+
+/* Leaflet needs an explicit height on its container; the host IS the container. */
+.stormgrid-maphost.leaflet-container {
+  height: 100%;
+  background: #eef2f4;
+}
+
+/* ── The ONE legend (bottom-right Leaflet control) ─────────────────────────── */
+.stormgrid-legend {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(0, 88, 91, 0.25);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: 12px/1.35 system-ui, sans-serif;
+  color: #16323a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  max-width: 220px;
+}
+.stormgrid-legend__title { display: block; margin-bottom: 4px; }
+.stormgrid-legend__bar {
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+.stormgrid-legend__bar-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #4a5560;
+}
+.stormgrid-legend__range { display: block; margin-top: 2px; color: #4a5560; }
+.stormgrid-legend__row { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+.stormgrid-legend__row i {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  flex: 0 0 auto;
+}
+
+/* ── The ONE cursor-following hover readout ────────────────────────────────── */
+.stormgrid-hoverreadout {
+  position: absolute;
+  z-index: 600;                /* above panes (basemap 200 / raster 350 / poly 400) */
+  pointer-events: none;        /* never intercept the cursor */
+  background: rgba(22, 50, 58, 0.92);
+  color: #fff;
+  font: 12px/1.3 system-ui, sans-serif;
+  padding: 4px 8px;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  white-space: nowrap;
+  max-width: 240px;
+}
+.stormgrid-hoverreadout__depth { display: block; font-weight: 600; }
+.stormgrid-hoverreadout__depth--no-coverage { color: #ffd27a; }    /* gap-honest: not 0 mm */
+.stormgrid-hoverreadout__depth--out-of-bounds { color: #b9c4cc; }
+.stormgrid-hoverreadout__depth--unknown { color: #b9c4cc; }
+.stormgrid-hoverreadout__catch { display: block; opacity: 0.85; font-size: 11px; }
+
+/* ── Reserved time-scrubber mount (docs/02 §7) ─────────────────────────────── */
+/* Kept present but zero-height + non-interactive until a future scrubber mounts
+   into it. Reserving the strip now avoids a layout reflow when it lands. */
+.stormgrid-scrubber-mount {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;                   /* collapsed until implemented */
+  z-index: 500;
+  pointer-events: none;
+}
