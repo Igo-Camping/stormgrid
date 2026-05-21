@@ -1,0 +1,133 @@
+/* shell.css — structural layout for the Stormgrid navigation shell.
+ *
+ * Spec: docs/02 §1 (three-column workspace), §9 (mobile-aware regions).
+ * This file is STRUCTURAL ONLY — layout, regions, mount-point scaffolding, and
+ * the overlay/sheet capability. It deliberately avoids product theming (colour
+ * ramps, typography scale) which live elsewhere (the existing stormgrid.css is
+ * not touched). New file per the build constraint.
+ *
+ * Class prefix `sg-` namespaces every selector to avoid collision with the
+ * existing stylesheet.
+ */
+
+/* ── Workspace shell: top bar over a three-column body ─────────────────────── */
+.sg-workspace {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.sg-topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 0 0 auto;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid currentColor;
+}
+.sg-topbar__brand { font-weight: 700; }
+.sg-topbar__spacer { flex: 1 1 auto; }
+.sg-topbar__breadcrumb,
+.sg-topbar__chip,
+.sg-topbar__export { flex: 0 0 auto; }
+
+/* The three-column body fills the remaining height. */
+.sg-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  align-items: stretch;
+}
+
+/* ── Regions ─────────────────────────────────────────────────────────────────
+ * Spine + results are fixed-width docked rails on desktop; map takes the rest.
+ * docs/02 §1: spine ~280–320px, results ~340–380px, map = remaining width.
+ */
+.sg-region { min-height: 0; overflow: auto; }
+
+.sg-region--spine {
+  flex: 0 0 300px;
+  border-right: 1px solid currentColor;
+  display: flex;
+  flex-direction: column;
+}
+
+.sg-region--map {
+  flex: 1 1 auto;
+  position: relative; /* anchors the stage banner overlay */
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sg-region--results {
+  flex: 0 0 360px;
+  border-left: 1px solid currentColor;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Overlay capability (docs/02 §9) ──────────────────────────────────────────
+ * Toggling `sg-region--overlay` floats the spine / results above the map as a
+ * sheet. The mobile pass and the picker expansions both use this — a class
+ * switch, not a re-mount. Desktop default is docked (no overlay class).
+ */
+.sg-region--overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 500;
+  max-width: 90%;
+  box-shadow: 0 0 1.5rem rgba(0, 0, 0, 0.25);
+  background: inherit;
+}
+.sg-region--spine.sg-region--overlay { left: 0; }
+.sg-region--results.sg-region--overlay { right: 0; }
+
+/* ── Map stage banner — honest loading / degraded / error messaging ─────────── */
+.sg-stage__banner {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid currentColor;
+}
+.sg-stage__banner[hidden] { display: none; }
+.sg-slot--stage { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+.sg-slot--stage .sg-slot__body { flex: 1 1 auto; min-height: 0; }
+
+/* ── Mount points (slots) ─────────────────────────────────────────────────────
+ * Each region renders labelled, empty slots. Real components mount into the
+ * `.sg-slot__body`; until then an honest `.sg-placeholder` shows.
+ */
+.sg-slot { padding: 0.5rem 0.75rem; }
+.sg-slot__label {
+  margin: 0 0 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.sg-slot__body { min-height: 1.5rem; }
+.sg-placeholder { margin: 0; font-size: 0.85rem; font-style: italic; opacity: 0.55; }
+
+/* Confidence is ALWAYS visible (docs/02 §6) — never collapsed, never modal. */
+.sg-slot--confidence { display: block; }
+
+/* Export entries reflect honest enablement (disabled until SETTLED/DEGRADED). */
+.sg-topbar__export[data-enabled='false'],
+.sg-slot[data-slot-wrap='resultsExport'][data-enabled='false'] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* ── State hooks ──────────────────────────────────────────────────────────────
+ * `data-state` on the root and `data-map-treatment` on the map region let later
+ * layers and theming react to the workflow state without JS coupling. Kept as
+ * structural hooks here; product colours belong to theming, not this file.
+ */
+.sg-workspace[data-state='state-empty'] .sg-region--results { /* hook: empty */ }
+.sg-region--map[data-map-treatment='streaming'] .sg-stage__banner,
+.sg-region--map[data-map-treatment='partial'] .sg-stage__banner,
+.sg-region--map[data-map-treatment='error'] .sg-stage__banner { font-weight: 600; }
