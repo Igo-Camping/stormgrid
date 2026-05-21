@@ -34,18 +34,23 @@ import {
 } from './layers.js';
 import { createLegend } from './legend.js';
 import { createHoverReadout } from './hoverReadout.js';
+import { loadPreviewOverlay } from './overlayLoader.js';
 
 const BRIDGE_NS = '__stormgrid';
 const REGIONAL_VIEW = { center: [-33.75, 151.27], zoom: 11 }; // docs/02 §3 EMPTY fallback
 
 /**
- * Look up depth at (lon,lat) in a windowResult grid. Mirrors the salvaged
+ * Look up depth at (lon,lat) in a contract raster grid. Mirrors the salvaged
  * hoverDepthAt (stormgridCumulativeOverlay.js:119-136) but reads the contract
  * grid shape (docs/04 §3.3: raster.grid.values_mm + bbox). Returns the gap-honest
- * { in_bounds, has_coverage, depth_mm } the hover readout expects.
+ * { in_bounds, has_coverage, depth_mm } the hover readout expects. The grid may
+ * come from a real windowResult.raster OR from the synthetic preview overlay —
+ * the lookup is identical, so the readout never special-cases the source.
+ *
+ * @param {{grid:Object}|null} raster  a contract raster ({ grid, pngRef, leafletBounds })
  */
-function gridLookup(windowResult) {
-  const grid = windowResult && windowResult.raster && windowResult.raster.grid;
+function gridLookup(raster) {
+  const grid = raster && raster.grid;
   return (lat, lon) => {
     const empty = { in_bounds: false, has_coverage: false, depth_mm: null };
     if (!grid || !Array.isArray(grid.values_mm) || !Array.isArray(grid.bbox)) return empty;
@@ -100,6 +105,69 @@ export function mountMap(container, store) {
   const legend = createLegend(map);
   const hover = createHoverReadout(container, { lookup: gridLookup(null) });
 
+  // ── SYNTHETIC PREVIEW OVERLAY (DECISIONS B-012; docs/04 §3.3) ───────────────
+  // The Lizard precomputed source returns windowResult.raster === null (the
+  // per-catchment JSON has no grid/PNG). The only spatial surface that exists
+  // today is the SEPARATE preview overlay (is_synthetic_preview:true), loaded once
+  // here via overlayLoader. We hold it and fall back to it when a windowResult is
+  // present but carries no real raster — clearly badged as synthetic so it is
+  // never presented as a real radar surface. If it fails to load, we keep null and
+  // the map shows the honest "no rainfall raster" state.
+  let previewOverlay = null; // OverlayLoadResult | null (set async)
+  loadPreviewOverlay()
+    .then((res) => {
+      previewOverlay = res && res.available ? res : null;
+      // Re-apply the raster now that the fallback surface is (or isn't) available.
+      syncRaster();
+    })
+    .catch(() => { previewOverlay = null; });
+
+  // The ACTIVE raster for the current store state. Prefers the real
+  // windowResult.raster (radar/real adapter, future); falls back to the synthetic
+  // preview overlay only while a windowResult is present (i.e. a selection has
+  // produced a window) so we never paint a raster over an empty/regional view.
+  // Returns { raster, isSyntheticPreview, previewMeta } — raster is null when none.
+  function effectiveRaster() {
+    const wr = select.windowResult(store.getState());
+    if (wr && wr.raster && wr.raster.pngRef) {
+      return { raster: wr.raster, isSyntheticPreview: false, previewMeta: null };
+    }
+    if (wr && previewOverlay && previewOverlay.raster) {
+      return {
+        raster: previewOverlay.raster,
+        isSyntheticPreview: !!previewOverlay.isSyntheticPreview,
+        previewMeta: previewOverlay.metadata || null,
+      };
+    }
+    return { raster: null, isSyntheticPreview: false, previewMeta: null };
+  }
+
+  // Single point that pushes the active raster to the image layer, the ONE legend,
+  // and the ONE hover lookup. Honours the layers.raster toggle and the current
+  // phase treatment (some phases force the raster clear regardless of data).
+  function syncRaster() {
+    const st = store.getState();
+    const layersOn = select.layers(st).raster !== false;
+    const rasterAllowed = treatmentAllowsRaster(select.phase(st));
+    const eff = effectiveRaster();
+    const active = (layersOn && rasterAllowed) ? eff.raster : null;
+
+    raster.update(active);
+    raster.setVisible(Boolean(active));
+    legend.update({
+      colourMode: select.colourMode(st),
+      windowResult: select.windowResult(st),
+      raster: active,
+      isSyntheticPreview: active ? eff.isSyntheticPreview : false,
+      previewMeta: active ? eff.previewMeta : null,
+      frame: { kind: 'window' }, // accumulated window today; scrubber swaps later
+    });
+    // Hover always reads the data grid (independent of the layers toggle) so the
+    // readout reports coverage even when the visual layer is hidden — but only when
+    // a raster is conceptually active for this phase. No raster -> empty lookup.
+    hover.setLookup(gridLookup(rasterAllowed ? eff.raster : null));
+  }
+
   // Boundary layer loads async (GeoJSON fetch). Track readiness so subscriptions
   // that arrive before it resolves can re-apply once it's ready.
   let boundary = null;
@@ -147,31 +215,29 @@ export function mountMap(container, store) {
     return hit;
   }
 
+  // Which phases may show a rainfall raster at all. REGIONAL (EMPTY), framed
+  // LOCATED (boundary only, no window yet), and ERROR (never stale/fabricated)
+  // suppress the raster regardless of data; the rest let the active raster paint.
+  function treatmentAllowsRaster(phase) {
+    const t = treatmentFor(phase);
+    return t !== MAP_TREATMENTS.REGIONAL
+      && t !== MAP_TREATMENTS.FRAMED_BOUNDARY
+      && t !== MAP_TREATMENTS.ERROR;
+  }
+
   // ── Phase → map treatment (docs/02 §3, tokens from workflowView.js). The host
   //    honours the semantic treatment; it does not re-derive workflow logic.
   function applyTreatment(phase) {
     const t = treatmentFor(phase);
-    switch (t) {
-      case MAP_TREATMENTS.REGIONAL:
-        // EMPTY: regional overview, no selection, no raster.
-        if (boundary) boundary.selectCatchment(null);
-        raster.update(null);
-        break;
-      case MAP_TREATMENTS.FRAMED_BOUNDARY:
-        // LOCATED: boundary framed, no raster yet (raster.update(null) keeps it clear).
-        raster.update(null);
-        break;
-      case MAP_TREATMENTS.ERROR:
-        // ERROR: no raster (honest — never show stale/fabricated). Boundary stays.
-        raster.update(null);
-        break;
-      // STREAMING_RASTER / SETTLED_RASTER / PARTIAL_RASTER: raster is driven by the
-      // windowResult subscription; nothing extra to toggle here. PARTIAL (DEGRADED)
-      // renders what exists with no-coverage cells transparent — that is a property
-      // of the PNG/grid the adapter produces, honoured by the raster as-is.
-      default:
-        break;
-    }
+    // REGIONAL clears any selection; raster suppression for all states is decided
+    // centrally by syncRaster() via treatmentAllowsRaster() so the active raster,
+    // legend badge, and hover lookup never drift out of sync.
+    if (t === MAP_TREATMENTS.REGIONAL && boundary) boundary.selectCatchment(null);
+    // STREAMING_RASTER / SETTLED_RASTER / PARTIAL_RASTER: the active raster paints
+    // (real windowResult.raster, else the synthetic preview). PARTIAL (DEGRADED)
+    // shows what exists with no-coverage cells transparent — a property of the
+    // PNG/grid, honoured as-is.
+    syncRaster();
   }
 
   function treatmentFor(phase) {
@@ -198,15 +264,11 @@ export function mountMap(container, store) {
   // ── Store subscriptions. Each returns an unsubscribe; collected for destroy().
   const unsubs = [];
 
-  unsubs.push(store.subscribe(select.windowResult, (windowResult) => {
-    const layers = select.layers(store.getState());
-    raster.update(layers.raster ? windowResult : null);
-    legend.update({
-      colourMode: select.colourMode(store.getState()),
-      windowResult,
-      frame: { kind: 'window' }, // accumulated window today; scrubber swaps later
-    });
-    hover.setLookup(gridLookup(windowResult));
+  // windowResult, layers, and colourMode all feed the single raster/legend/hover
+  // sync so the active raster (real or synthetic preview), the ONE legend's range
+  // + badge, and the ONE hover lookup stay coherent from a single code path.
+  unsubs.push(store.subscribe(select.windowResult, () => {
+    syncRaster();
   }));
 
   unsubs.push(store.subscribe(select.location, (loc) => {
@@ -214,12 +276,12 @@ export function mountMap(container, store) {
   }));
 
   unsubs.push(store.subscribe(select.layers, (layers) => {
-    raster.setVisible(Boolean(layers.raster) && Boolean(select.windowResult(store.getState())));
+    syncRaster(); // honours the raster toggle (visibility) centrally
     if (boundary) boundary.setVisible(layers.catchment !== false);
   }));
 
-  unsubs.push(store.subscribe(select.colourMode, (colourMode) => {
-    legend.update({ colourMode, windowResult: select.windowResult(store.getState()) });
+  unsubs.push(store.subscribe(select.colourMode, () => {
+    syncRaster();
   }));
 
   unsubs.push(store.subscribe(select.phase, (phase) => {
@@ -244,13 +306,11 @@ export function mountMap(container, store) {
   });
 
   // ── Apply the initial snapshot synchronously for everything not boundary-bound.
+  //    syncRaster() reads the current windowResult/layers/colourMode/phase and the
+  //    (not-yet-loaded) preview overlay; the preview's .then() re-runs it on load.
   {
     const st = store.getState();
-    const wr = select.windowResult(st);
-    raster.update(select.layers(st).raster ? wr : null);
-    legend.update({ colourMode: select.colourMode(st), windowResult: wr, frame: { kind: 'window' } });
-    hover.setLookup(gridLookup(wr));
-    applyTreatment(select.phase(st));
+    applyTreatment(select.phase(st)); // calls syncRaster() internally
   }
 
   function destroy() {

@@ -12,9 +12,11 @@
 //   createRainfallRasterLayer(map, opts)
 //       L.imageOverlay PNG on a DEDICATED pane BELOW the polygon pane (z 350),
 //       pointerEvents:'none' so hover/click pass through to the polygons and the
-//       hover readout. For THIS phase it draws a PLACEHOLDER raster from
-//       windowResult.raster { pngRef, leafletBounds }; if absent it draws nothing.
-//       Real data fetching is the adapter + B.3, NOT here (docs/04 §4 Map layer).
+//       hover readout. It draws a contract raster { pngRef, leafletBounds } if
+//       present (docs/04 §3.3); if absent it draws nothing. The raster object can
+//       come from a real windowResult.raster OR from the synthetic preview overlay
+//       (overlayLoader.js) — this layer does not care which; the host decides.
+//       Raster fetching for the real adapter is the adapter + B.3, NOT here.
 //
 // Z-ORDER (docs/02 §7, salvaged from stormgridCumulativeOverlay.js:26-28):
 //   basemap            z 200  (CARTO light, owned by mapHost)
@@ -56,16 +58,17 @@ function ensureRasterPane(map) {
 
 /**
  * The rainfall raster layer. Owns its own L.imageOverlay reference and swaps it
- * in place when the windowResult changes (no map re-mount).
+ * in place when the raster changes (no map re-mount).
  *
- * PLACEHOLDER-PHASE CONTRACT (docs/04 §3.3): consumes
- *   windowResult.raster = { pngRef: string, leafletBounds: [[s,w],[n,e]] }
- * Draws that PNG if present; draws nothing if windowResult or raster is absent.
- * No fetching, no grid building here — that is the adapter's job (B.3).
+ * CONTRACT (docs/04 §3.3): consumes a raster object
+ *   raster = { pngRef: string, leafletBounds: [[s,w],[n,e]] }
+ * Draws that PNG if present; draws nothing if the raster is absent. The raster may
+ * be the real windowResult.raster or the synthetic preview overlay — same shape,
+ * same draw. No fetching, no grid building here.
  *
  * @param {L.Map} map
  * @param {{opacity?:number}} [opts]
- * @returns {{ update(windowResult:Object|null):void, setVisible(v:boolean):void,
+ * @returns {{ update(raster:Object|null):void, setVisible(v:boolean):void,
  *            setOpacity(o:number):void, destroy():void }}
  */
 export function createRainfallRasterLayer(map, opts = {}) {
@@ -83,8 +86,7 @@ export function createRainfallRasterLayer(map, opts = {}) {
     lastPngRef = null;
   }
 
-  function update(windowResult) {
-    const raster = windowResult && windowResult.raster;
+  function update(raster) {
     const pngRef = raster && raster.pngRef;
     const bounds = raster && raster.leafletBounds;
     if (!pngRef || !Array.isArray(bounds)) { clear(); return; }

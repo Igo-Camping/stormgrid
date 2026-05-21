@@ -45,6 +45,30 @@
   color: #4a5560;
 }
 .stormgrid-legend__range { display: block; margin-top: 2px; color: #4a5560; }
+
+/* Honest empty state — shown when no raster exists for the selection (never a
+   blank-but-settled scale). */
+.stormgrid-legend__empty {
+  margin: 4px 0 0;
+  color: #6b7680;
+  font-style: italic;
+}
+
+/* Synthetic-preview badge (DECISIONS B-012): the active raster is the preview
+   overlay derived from precomputed catchment rainfall, NOT a real radar surface.
+   Amber to read as a caveat, not an error. */
+.stormgrid-legend__synth {
+  margin: 2px 0 6px;
+  padding: 4px 6px;
+  border-left: 3px solid #E0A030;
+  background: rgba(224, 160, 48, 0.12);
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: #6a4a10;
+}
+.stormgrid-legend__synth strong { display: inline; }
+.stormgrid-legend__synth span { display: block; margin-top: 2px; color: #7a5a20; }
 .stormgrid-legend__row { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
 .stormgrid-legend__row i {
   display: inline-block;
